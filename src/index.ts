@@ -86,11 +86,16 @@ app.onError((err, c) => {
   return c.json({ error: 'Internal server error' }, 500);
 });
 
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT) || 3000;
 
-console.log(`🚀 Ring Buddy server running on port ${port}`);
-
-export default {
+// Use Bun.serve() with explicit hostname for Railway compatibility
+// Railway requires binding to 0.0.0.0 to accept external connections
+const server = Bun.serve({
   port,
+  hostname: '0.0.0.0',
   fetch: app.fetch,
-};
+});
+
+console.log(`🚀 Ring Buddy server running on ${server.hostname}:${server.port}`);
+
+export default server;
