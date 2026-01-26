@@ -88,14 +88,12 @@ app.onError((err, c) => {
 
 const port = Number(process.env.PORT) || 3000;
 
-// Use Bun.serve() with explicit hostname for Railway compatibility
-// Railway requires binding to 0.0.0.0 to accept external connections
-const server = Bun.serve({
+console.log(`🚀 Ring Buddy server starting on 0.0.0.0:${port}`);
+
+// Use Bun's automatic server startup via default export
+// hostname: '0.0.0.0' is required for Railway to accept external connections
+export default {
   port,
   hostname: '0.0.0.0',
   fetch: app.fetch,
-});
-
-console.log(`🚀 Ring Buddy server running on ${server.hostname}:${server.port}`);
-
-export default server;
+};
