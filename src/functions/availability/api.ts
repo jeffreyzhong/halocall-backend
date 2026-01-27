@@ -121,6 +121,7 @@ app.post('/search', async (c) => {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
+        year: 'numeric',
         timeZone: timezone,
       });
       if (!slotsByDate[date]) {
@@ -135,14 +136,7 @@ app.post('/search', async (c) => {
       slotsByDate[date].push(time);
     }
 
-    return c.json(successResponse({
-      total_slots: slots.length,
-      message: slots.length > 0 
-        ? `Found ${slots.length} available time slots`
-        : 'No available time slots found for the selected dates',
-      slots,
-      slots_by_date: slotsByDate,
-    }));
+    return c.json(successResponse(slotsByDate));
   } catch (error) {
     console.error('Availability search error:', error);
     return c.json(errorResponse(handleSquareError(error)), 500);
