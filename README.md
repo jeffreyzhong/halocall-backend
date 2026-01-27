@@ -51,13 +51,25 @@ bun install
 
 ### Environment Variables
 
-Create a `.env` file with your Square credentials:
+Create a `.env` file with your configuration:
 
 ```env
+# Database (Supabase)
+DATABASE_URL=postgresql://...  # Pooled connection for runtime queries
+DIRECT_URL=postgresql://...    # Direct connection for migrations
+
+# Encryption (generate with: openssl rand -base64 32)
+ENCRYPTION_KEY=your-encryption-key-here
+
+# Square API (legacy - now stored per-merchant in database)
 SQUARE_SANDBOX_ACCESS_TOKEN=your_sandbox_token
 SQUARE_PRODUCTION_ACCESS_TOKEN=your_production_token
+
+# Environment
 NODE_ENV=development
 ```
+
+**Note:** Square access tokens are now stored per-merchant in the database (encrypted). The environment variables above are legacy and only used if no merchants are configured.
 
 ### Development
 
@@ -72,6 +84,68 @@ The server will start at `http://localhost:3000` with hot reloading.
 ```bash
 bun run typecheck
 ```
+
+## Multi-Tenant Setup
+
+Ring Buddy supports multiple Square sellers (merchants) in a single deployment. Each merchant has their own encrypted Square credentials stored in the database.
+
+### Database Setup
+
+First, push the schema to your database:
+
+```bash
+bun run db:push
+```
+
+### Adding Merchants
+
+Add a new merchant to the database:
+
+```bash
+# With command line arguments
+bun run merchant:add --merchant-id=acme-salon --name="Acme Salon" --token=EAAAl... --sandbox
+
+# Or edit the script defaults and run
+bun run merchant:add
+```
+
+**Options:**
+- `--merchant-id=<id>` - Unique identifier for API calls (required)
+- `--name=<name>` - Business display name (optional)
+- `--token=<token>` - Square access token (required)
+- `--refresh-token=<token>` - Square refresh token (optional)
+- `--sandbox` - Use sandbox environment
+- `--production` - Use production environment (default)
+
+### Listing Merchants
+
+View all merchants in the database:
+
+```bash
+bun run merchant:list
+```
+
+### API Authentication
+
+All API endpoints require a `merchant_id` to identify which Square seller account to use. Provide it in one of these ways:
+
+1. **Request body:**
+   ```json
+   {
+     "merchant_id": "your-merchant-id",
+     "phone_number": "+15551234567"
+   }
+   ```
+
+2. **Query parameter:**
+   ```
+   POST /customers/lookup?merchant_id=your-merchant-id
+   ```
+
+3. **Header:**
+   ```
+   X-Merchant-ID: your-merchant-id
+   ```
 
 ## API Endpoints
 
@@ -148,12 +222,15 @@ curl $BASE_URL/
 # List all locations
 curl -X POST $BASE_URL/locations/list \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"merchant_id": "your-merchant-id"}'
 
 # Get specific location details
 curl -X POST $BASE_URL/locations/get \
   -H "Content-Type: application/json" \
-  -d '{"location_id": "LTDCH3ZYBBS4C"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "location_id": "LTDCH3ZYBBS4C"
+  }'
 ```
 
 ### Services
@@ -162,17 +239,23 @@ curl -X POST $BASE_URL/locations/get \
 # List all bookable services
 curl -X POST $BASE_URL/services/list \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"merchant_id": "your-merchant-id"}'
 
 # List services for a specific location
 curl -X POST $BASE_URL/services/list \
   -H "Content-Type: application/json" \
-  -d '{"location_id": "LTDCH3ZYBBS4C"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "location_id": "LTDCH3ZYBBS4C"
+  }'
 
 # Get specific service details
 curl -X POST $BASE_URL/services/get \
   -H "Content-Type: application/json" \
-  -d '{"service_id": "ABCDEFGHIJKLMNOP"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "service_id": "ABCDEFGHIJKLMNOP"
+  }'
 ```
 
 ### Staff
@@ -181,17 +264,23 @@ curl -X POST $BASE_URL/services/get \
 # List all bookable staff members
 curl -X POST $BASE_URL/staff/list \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"merchant_id": "your-merchant-id"}'
 
 # List staff for a specific location
 curl -X POST $BASE_URL/staff/list \
   -H "Content-Type: application/json" \
-  -d '{"location_id": "LTDCH3ZYBBS4C"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "location_id": "LTDCH3ZYBBS4C"
+  }'
 
 # Get specific staff member details
 curl -X POST $BASE_URL/staff/get \
   -H "Content-Type: application/json" \
-  -d '{"team_member_id": "TMnVnspoQmdixD23"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "team_member_id": "TMnVnspoQmdixD23"
+  }'
 ```
 
 ### Customers
@@ -200,27 +289,41 @@ curl -X POST $BASE_URL/staff/get \
 # Lookup customer by phone number (caller ID)
 curl -X POST $BASE_URL/customers/lookup \
   -H "Content-Type: application/json" \
-  -d '{"phone_number": "+12065551234"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "phone_number": "+12065551234"
+  }'
 
 # Search customers by phone
 curl -X POST $BASE_URL/customers/search \
   -H "Content-Type: application/json" \
-  -d '{"phone_number": "206555"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "phone_number": "206555"
+  }'
 
 # Search customers by email
 curl -X POST $BASE_URL/customers/search \
   -H "Content-Type: application/json" \
-  -d '{"email": "john@example.com"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "email": "john@example.com"
+  }'
 
 # Search customers by name
 curl -X POST $BASE_URL/customers/search \
   -H "Content-Type: application/json" \
-  -d '{"name": "John", "phone_number": "555"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "name": "John",
+    "phone_number": "555"
+  }'
 
 # Create a new customer
 curl -X POST $BASE_URL/customers/create \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "given_name": "John",
     "family_name": "Doe",
     "email": "john.doe@example.com",
@@ -231,7 +334,10 @@ curl -X POST $BASE_URL/customers/create \
 # Get all bookings for a customer
 curl -X POST $BASE_URL/customers/bookings \
   -H "Content-Type: application/json" \
-  -d '{"customer_id": "CUSTOMER_ID_HERE"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "customer_id": "CUSTOMER_ID_HERE"
+  }'
 ```
 
 ### Availability
@@ -241,6 +347,7 @@ curl -X POST $BASE_URL/customers/bookings \
 curl -X POST $BASE_URL/availability/search \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "location_id": "LTDCH3ZYBBS4C",
     "service_variation_id": "FP2MBDGNMUBT6ZFHUR2VVY5R",
     "start_date": "2026-02-01",
@@ -251,6 +358,7 @@ curl -X POST $BASE_URL/availability/search \
 curl -X POST $BASE_URL/availability/search \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "location_id": "LTDCH3ZYBBS4C",
     "service_variation_id": "FP2MBDGNMUBT6ZFHUR2VVY5R",
     "start_date": "2026-02-01",
@@ -266,6 +374,7 @@ curl -X POST $BASE_URL/availability/search \
 curl -X POST $BASE_URL/bookings/create \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "location_id": "LTDCH3ZYBBS4C",
     "service_variation_id": "FP2MBDGNMUBT6ZFHUR2VVY5R",
     "start_at": "2026-02-01T14:00:00Z",
@@ -277,12 +386,16 @@ curl -X POST $BASE_URL/bookings/create \
 # Get booking details
 curl -X POST $BASE_URL/bookings/get \
   -H "Content-Type: application/json" \
-  -d '{"booking_id": "BOOKING_ID_HERE"}'
+  -d '{
+    "merchant_id": "your-merchant-id",
+    "booking_id": "BOOKING_ID_HERE"
+  }'
 
 # Update a booking (change time or note)
 curl -X POST $BASE_URL/bookings/update \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "booking_id": "BOOKING_ID_HERE",
     "booking_version": 0,
     "start_at": "2026-02-01T15:00:00Z",
@@ -293,6 +406,7 @@ curl -X POST $BASE_URL/bookings/update \
 curl -X POST $BASE_URL/bookings/cancel \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "booking_id": "BOOKING_ID_HERE",
     "booking_version": 1,
     "cancel_reason": "Customer requested cancellation"
@@ -301,12 +415,13 @@ curl -X POST $BASE_URL/bookings/cancel \
 # List all bookings
 curl -X POST $BASE_URL/bookings/list \
   -H "Content-Type: application/json" \
-  -d '{}'
+  -d '{"merchant_id": "your-merchant-id"}'
 
 # List bookings with filters
 curl -X POST $BASE_URL/bookings/list \
   -H "Content-Type: application/json" \
   -d '{
+    "merchant_id": "your-merchant-id",
     "location_id": "LTDCH3ZYBBS4C",
     "start_at_min": "2026-02-01T00:00:00Z",
     "start_at_max": "2026-02-28T23:59:59Z",
@@ -361,9 +476,12 @@ In Railway's dashboard, add the following environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `SQUARE_SANDBOX_ACCESS_TOKEN` | Square Sandbox API token |
-| `SQUARE_PRODUCTION_ACCESS_TOKEN` | Square Production API token |
+| `DATABASE_URL` | PostgreSQL connection string (pooled) |
+| `DIRECT_URL` | PostgreSQL direct connection for migrations |
+| `ENCRYPTION_KEY` | Encryption key for merchant tokens (generate with `openssl rand -base64 32`) |
 | `NODE_ENV` | Set to `production` for production deployment |
+
+**Note:** Square access tokens are now stored per-merchant in the database. After deployment, use `bun run merchant:add` to add merchants.
 
 ### 4. Deploy
 

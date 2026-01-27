@@ -11,11 +11,23 @@ import staff from './functions/staff/api';
 import availability from './functions/availability/api';
 import bookings from './functions/bookings/api';
 
+// Import merchant middleware
+import { merchantMiddleware } from './lib/middleware';
+
 const app = new Hono();
 
-// Middleware
+// Global Middleware
 app.use('*', logger());
 app.use('*', cors());
+
+// Apply merchant middleware to all API routes (except health check and root)
+// This extracts merchant_id and attaches the Square client to context
+app.use('/customers/*', merchantMiddleware);
+app.use('/locations/*', merchantMiddleware);
+app.use('/services/*', merchantMiddleware);
+app.use('/staff/*', merchantMiddleware);
+app.use('/availability/*', merchantMiddleware);
+app.use('/bookings/*', merchantMiddleware);
 
 // Health check endpoint
 app.get('/health', (c) => {
@@ -30,7 +42,15 @@ app.get('/', (c) => {
   return c.json({
     name: 'Ring Buddy API',
     description: 'Webhook API endpoints for AI voice agent to manage Square appointments',
-    version: '1.0.0',
+    version: '2.0.0',
+    authentication: {
+      description: 'All API endpoints require a merchant_id to identify which Square seller account to use.',
+      methods: [
+        'Request body: { "merchant_id": "your-merchant-id", ... }',
+        'Query parameter: ?merchant_id=your-merchant-id',
+        'Header: X-Merchant-ID: your-merchant-id',
+      ],
+    },
     endpoints: {
       customers: {
         base: '/customers',

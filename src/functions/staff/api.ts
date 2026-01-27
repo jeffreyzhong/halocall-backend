@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { squareClient, handleSquareError } from '../../lib/square';
+import { handleSquareError } from '../../lib/square';
+import { getSquareClient, getRequestArgs } from '../../lib/middleware';
 import {
   successResponse,
   errorResponse,
@@ -33,8 +34,8 @@ function transformStaffMember(
  */
 app.post('/list', async (c) => {
   try {
-    const body = await c.req.json().catch(() => ({}));
-    const args: StaffListArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<StaffListArgs>(c);
 
     // Get team member booking profiles which includes bookability info
     const profilesPage = await squareClient.bookings.teamMemberProfiles.list({
@@ -96,8 +97,8 @@ app.post('/list', async (c) => {
  */
 app.post('/get', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: StaffGetArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<StaffGetArgs>(c);
 
     if (!args.team_member_id) {
       return c.json(errorResponse('Missing required parameter: team_member_id'), 400);

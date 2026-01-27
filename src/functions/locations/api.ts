@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { squareClient, handleSquareError } from '../../lib/square';
+import { handleSquareError } from '../../lib/square';
+import { getSquareClient, getRequestArgs } from '../../lib/middleware';
 import {
   successResponse,
   errorResponse,
@@ -190,6 +191,7 @@ function transformLocation(location: Record<string, unknown>): LocationInfo {
  */
 app.post('/list', async (c) => {
   try {
+    const squareClient = getSquareClient(c);
     const response = await squareClient.locations.list();
 
     const locations = (response.locations || [])
@@ -211,8 +213,8 @@ app.post('/list', async (c) => {
  */
 app.post('/get', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: LocationGetArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<LocationGetArgs>(c);
 
     if (!args.location_id) {
       return c.json(errorResponse('Missing required parameter: location_id'), 400);

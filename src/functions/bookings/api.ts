@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import { squareClient, handleSquareError } from '../../lib/square';
+import type { SquareClient } from 'square';
+import { handleSquareError } from '../../lib/square';
+import { getSquareClient, getRequestArgs } from '../../lib/middleware';
 import {
   successResponse,
   errorResponse,
@@ -68,7 +70,10 @@ function formatStatus(status: string): string {
 /**
  * Transform Square booking to simplified BookingInfo (TTS-optimized)
  */
-async function transformBooking(booking: Record<string, unknown>): Promise<BookingInfo> {
+async function transformBooking(
+  booking: Record<string, unknown>,
+  squareClient: SquareClient
+): Promise<BookingInfo> {
   const appointmentSegments = booking.appointmentSegments as Array<Record<string, unknown>> | undefined;
   const startAt = booking.startAt as string;
   const durationMinutes = appointmentSegments?.[0]?.durationMinutes as number | undefined;
@@ -159,8 +164,8 @@ async function transformBooking(booking: Record<string, unknown>): Promise<Booki
  */
 app.post('/create', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: BookingCreateArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<BookingCreateArgs>(c);
 
     // Validate required parameters
     if (!args.location_id) {
@@ -207,7 +212,7 @@ app.post('/create', async (c) => {
       return c.json(errorResponse('Failed to create booking'), 500);
     }
 
-    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>);
+    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>, squareClient);
 
     return c.json(successResponse({
       message: 'Booking created successfully',
@@ -224,8 +229,8 @@ app.post('/create', async (c) => {
  */
 app.post('/get', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: BookingGetArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<BookingGetArgs>(c);
 
     if (!args.booking_id) {
       return c.json(errorResponse('Missing required parameter: booking_id'), 400);
@@ -237,7 +242,7 @@ app.post('/get', async (c) => {
       return c.json(errorResponse('Booking not found'), 404);
     }
 
-    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>);
+    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>, squareClient);
 
     return c.json(successResponse({ booking }));
   } catch (error) {
@@ -251,8 +256,8 @@ app.post('/get', async (c) => {
  */
 app.post('/update', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: BookingUpdateArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<BookingUpdateArgs>(c);
 
     if (!args.booking_id) {
       return c.json(errorResponse('Missing required parameter: booking_id'), 400);
@@ -310,7 +315,7 @@ app.post('/update', async (c) => {
       return c.json(errorResponse('Failed to update booking'), 500);
     }
 
-    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>);
+    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>, squareClient);
 
     return c.json(successResponse({
       message: 'Booking updated successfully',
@@ -327,8 +332,8 @@ app.post('/update', async (c) => {
  */
 app.post('/cancel', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: BookingCancelArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<BookingCancelArgs>(c);
 
     if (!args.booking_id) {
       return c.json(errorResponse('Missing required parameter: booking_id'), 400);
@@ -344,7 +349,7 @@ app.post('/cancel', async (c) => {
       return c.json(errorResponse('Failed to cancel booking'), 500);
     }
 
-    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>);
+    const booking = await transformBooking(response.booking as unknown as Record<string, unknown>, squareClient);
 
     return c.json(successResponse({
       message: 'Booking cancelled successfully',
@@ -361,8 +366,8 @@ app.post('/cancel', async (c) => {
  */
 app.post('/list', async (c) => {
   try {
-    const body = await c.req.json().catch(() => ({}));
-    const args: BookingListArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<BookingListArgs>(c);
 
     const listParams: Record<string, unknown> = {};
 
@@ -389,7 +394,7 @@ app.post('/list', async (c) => {
 
     const bookings: BookingInfo[] = [];
     for await (const booking of response) {
-      const transformed = await transformBooking(booking as unknown as Record<string, unknown>);
+      const transformed = await transformBooking(booking as unknown as Record<string, unknown>, squareClient);
       bookings.push(transformed);
       
       // Limit results if specified

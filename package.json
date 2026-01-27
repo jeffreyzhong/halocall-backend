@@ -9,10 +9,21 @@
     "build": "bun run typecheck",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:pull": "prisma db pull",
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate",
+    "merchant:add": "bun run scripts/add-merchant.ts",
+    "merchant:list": "bun run scripts/list-merchants.ts"
   },
   "dependencies": {
+    "@prisma/client": "^7.3.0",
+    "dotenv": "^17.2.3",
     "hono": "^4.6.0",
+    "prisma": "^7.3.0",
     "square": "^43.2.1"
   },
   "devDependencies": {

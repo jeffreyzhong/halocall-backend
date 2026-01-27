@@ -26,3 +26,5 @@ npm-debug.log*
 
 # Bun binary lockfile (use bun.lock text format instead)
 bun.lockb
+
+/src/generated/prisma

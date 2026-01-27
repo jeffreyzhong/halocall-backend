@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { squareClient, handleSquareError } from '../../lib/square';
+import { handleSquareError } from '../../lib/square';
+import { getSquareClient, getRequestArgs } from '../../lib/middleware';
 import {
   successResponse,
   errorResponse,
@@ -106,8 +107,8 @@ function transformCustomer(customer: Record<string, unknown>): CustomerInfo {
  */
 app.post('/lookup', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: CustomerLookupArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<CustomerLookupArgs>(c);
 
     if (!args.phone_number) {
       return c.json(errorResponse('Missing required parameter: phone_number'), 400);
@@ -153,8 +154,8 @@ app.post('/lookup', async (c) => {
  */
 app.post('/search', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: CustomerSearchArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<CustomerSearchArgs>(c);
 
     if (!args.phone_number && !args.email && !args.name) {
       return c.json(
@@ -214,8 +215,8 @@ app.post('/search', async (c) => {
  */
 app.post('/create', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: CustomerCreateArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<CustomerCreateArgs>(c);
 
     if (!args.given_name && !args.phone_number && !args.email) {
       return c.json(
@@ -255,8 +256,8 @@ app.post('/create', async (c) => {
  */
 app.post('/bookings', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: CustomerBookingsArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<CustomerBookingsArgs>(c);
 
     if (!args.customer_id) {
       return c.json(errorResponse('Missing required parameter: customer_id'), 400);

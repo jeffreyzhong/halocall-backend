@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { squareClient, handleSquareError } from '../../lib/square';
+import { handleSquareError } from '../../lib/square';
+import { getSquareClient, getRequestArgs } from '../../lib/middleware';
 import {
   successResponse,
   errorResponse,
@@ -67,8 +68,8 @@ function transformService(
  */
 app.post('/list', async (c) => {
   try {
-    const body = await c.req.json().catch(() => ({}));
-    const args: ServiceListArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<ServiceListArgs>(c);
 
     // Search for items of type APPOINTMENTS_SERVICE
     const response = await squareClient.catalog.search({
@@ -124,8 +125,8 @@ app.post('/list', async (c) => {
  */
 app.post('/get', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: ServiceGetArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<ServiceGetArgs>(c);
 
     if (!args.service_id) {
       return c.json(errorResponse('Missing required parameter: service_id'), 400);

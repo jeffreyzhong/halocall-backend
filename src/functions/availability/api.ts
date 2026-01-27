@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { SegmentFilter } from 'square';
-import { squareClient, handleSquareError } from '../../lib/square';
+import { handleSquareError } from '../../lib/square';
+import { getSquareClient, getRequestArgs } from '../../lib/middleware';
 import {
   successResponse,
   errorResponse,
@@ -52,8 +53,8 @@ function formatTimeSlot(isoDate: string, timezone?: string): string {
  */
 app.post('/search', async (c) => {
   try {
-    const body = await c.req.json();
-    const args: AvailabilitySearchArgs = body.arguments || body;
+    const squareClient = getSquareClient(c);
+    const args = getRequestArgs<AvailabilitySearchArgs>(c);
 
     // Validate required parameters
     if (!args.location_id) {

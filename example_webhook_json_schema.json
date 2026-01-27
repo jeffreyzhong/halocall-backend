@@ -1,0 +1,112 @@
+{
+    "type": "webhook",
+    "name": "create_oil_massage_booking",
+    "description": "Creates a new oil massage booking. Only call this tool after you have confirmed that the caller wants to book an oil massage, and you've confirmed their desired date and time, full name, and phone number.",
+    "disable_interruptions": true,
+    "force_pre_tool_speech": "force",
+    "assignments": [],
+    "tool_call_sound": "typing",
+    "tool_call_sound_behavior": "always",
+    "execution_mode": "immediate",
+    "api_schema": {
+      "url": "https://api.cal.com/v2/bookings",
+      "method": "POST",
+      "path_params_schema": [],
+      "query_params_schema": [],
+      "request_body_schema": {
+        "id": "body",
+        "type": "object",
+        "description": "Oil massage booking details",
+        "properties": [
+          {
+            "id": "eventTypeId",
+            "type": "number",
+            "value_type": "constant",
+            "description": "",
+            "dynamic_variable": "",
+            "constant_value": "4444823",
+            "enum": null,
+            "is_system_provided": false,
+            "required": false
+          },
+          {
+            "id": "start",
+            "type": "string",
+            "value_type": "llm_prompt",
+            "description": "**Description:**\nThe precise start datetime of the appointment being booked. This value must correspond exactly to **one of the available slot start times** previously returned by the availability (slots) API and explicitly confirmed by the caller.\n\n**Extraction rules:**\n* Only set `start` **after the caller has clearly selected or confirmed a specific time** (e.g., “Yes, 4:30 PM works”).\n* Interpret the caller’s confirmed time in the business timezone: **`America/Los_Angeles`**, unless the caller explicitly states another timezone.\n* The value must match the **start time of an available slot** (do not invent or round times).\n* Convert the confirmed local datetime to **UTC** using real timezone rules (DST-aware).\n* Output a full **ISO 8601 UTC datetime** ending with `Z` (e.g., `YYYY-MM-DDTHH:MM:SSZ`).\n* Do **not** pass date-only values (e.g., `YYYY-MM-DD`).\n* Do **not** infer a time if the caller has not explicitly confirmed one.\n\n**Validation rules:**\n* Must be a valid ISO 8601 datetime with `Z`.\n* Must be strictly in the future.\n* Must align exactly with a slot previously returned by the availability API.\n\n**Examples:**\n* Caller: “Let’s book January 21st at 4:30 PM.”\n  `start = 2026-01-22T00:30:00Z`\n* Caller: “The 9 AM slot works for me.” (on Jan 21, LA time)\n  `start = 2026-01-21T17:00:00Z` (example if PDT)\n* Caller: “Any time that day is fine.”\n  Do not set `start` yet — prompt the caller to choose a specific time.\n\n**Invariant (must always hold):**\nThe `start` value must represent the **exact start time of the confirmed booking**, interpreted in `America/Los_Angeles` local time first and then converted to **UTC ISO 8601 with a `Z` suffix** using DST-aware timezone rules; never hardcode offsets and never use date-only values.",
+            "dynamic_variable": "",
+            "constant_value": "",
+            "enum": null,
+            "is_system_provided": false,
+            "required": true
+          },
+          {
+            "id": "attendee",
+            "type": "object",
+            "description": "The full name, email address, and phone number of the person who will attend the oil massage.",
+            "properties": [
+              {
+                "id": "name",
+                "type": "string",
+                "value_type": "llm_prompt",
+                "description": "The full name of the person who will attend the oil massage exactly as provided by the caller.",
+                "dynamic_variable": "",
+                "constant_value": "",
+                "enum": null,
+                "is_system_provided": false,
+                "required": true
+              },
+              {
+                "id": "timeZone",
+                "type": "string",
+                "value_type": "constant",
+                "description": "",
+                "dynamic_variable": "",
+                "constant_value": "America/Los_Angeles",
+                "enum": null,
+                "is_system_provided": false,
+                "required": true
+              },
+              {
+                "id": "phoneNumber",
+                "type": "string",
+                "value_type": "llm_prompt",
+                "description": "**Description:**\nThe attendee’s phone number used for booking confirmations and contact purposes. This number must include the **country code** and be formatted in international (E.164) format.\n\n**Extraction rules:**\n* Ask the caller for their phone number if it has not already been provided.\n* Do not ask for the country code. Default the country code to +1 (United States) if not voluntarily provided by the caller.\n* Remove all spaces, parentheses, and punctuation.\n* Prepend `+` and the appropriate country code.\n* Output digits only after the `+`.\n* Do **not** guess or fabricate digits.\n* Preserve the number exactly once normalized to E.164.\n\n**Validation rules:**\n* Must begin with `+`.\n* Must contain **country code + phone number**\n* Must be a single string (not a number).\n* Must not include spaces or separators.\n\n**Examples:**\n* Caller: “My number is 949-260-9988” (US)\n  `phoneNumber = \"+19492609988\"`\n\n**Invariant (must always hold):**\n`phoneNumber` must be a **valid international phone number including country code**, formatted as an **E.164 string** (leading `+` followed by digits only); never omit the country code and never pass a local-only number.",
+                "dynamic_variable": "",
+                "constant_value": "",
+                "enum": null,
+                "is_system_provided": false,
+                "required": true
+              }
+            ],
+            "required": true,
+            "value_type": "llm_prompt"
+          }
+        ],
+        "required": false,
+        "value_type": "llm_prompt"
+      },
+      "request_headers": [
+        {
+          "type": "value",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "type": "value",
+          "name": "cal-api-version",
+          "value": "2024-08-13"
+        },
+        {
+          "type": "secret",
+          "name": "Authorization",
+          "secret_id": "Y4thxeKe0aZlpr3zdvjR"
+        }
+      ],
+      "auth_connection": null
+    },
+    "response_timeout_secs": 20,
+    "dynamic_variables": {
+      "dynamic_variable_placeholders": {}
+    }
+  }

@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model agents_config {
+  id                    BigInt   @id @default(autoincrement())
+  created_at            DateTime @default(dbgenerated("(now() AT TIME ZONE 'America/Los_Angeles'::text)")) @db.Timestamptz(6)
+  clerk_organization_id String
+  agent_id              String
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model users {
+  id                    BigInt   @id @default(autoincrement())
+  created_at            DateTime @default(dbgenerated("(now() AT TIME ZONE 'America/Los_Angeles'::text)")) @db.Timestamptz(6)
+  clerk_user_id         String   @unique
+  email                 String   @unique
+  first_name            String
+  last_name             String
+  updated_at            DateTime @default(dbgenerated("(now() AT TIME ZONE 'America/Los_Angeles'::text)")) @db.Timestamptz(6)
+  clerk_organization_id String
+  agent_phone_number    String?
+  seller_name           String?
+}
+
+/// Merchant credentials for Square API access
+/// Access tokens are encrypted at rest using application-level encryption
+model merchants {
+  id                          BigInt   @id @default(autoincrement())
+  created_at                  DateTime @default(dbgenerated("(now() AT TIME ZONE 'America/Los_Angeles'::text)")) @db.Timestamptz(6)
+  updated_at                  DateTime @default(dbgenerated("(now() AT TIME ZONE 'America/Los_Angeles'::text)")) @db.Timestamptz(6)
+  /// Unique merchant identifier (used in API calls)
+  merchant_id                 String   @unique
+  /// Business name for display purposes
+  business_name               String?
+  /// Encrypted Square access token
+  square_access_token_encrypted String
+  /// Encrypted Square refresh token (for OAuth flow)
+  square_refresh_token_encrypted String?
+  /// Whether this merchant uses sandbox or production
+  is_sandbox                  Boolean  @default(false)
+  /// Whether this merchant is active
+  is_active                   Boolean  @default(true)
+}
