@@ -71,6 +71,21 @@ NODE_ENV=development
 
 **Note:** Square access tokens are now stored per-merchant in the database (encrypted). The environment variables above are legacy and only used if no merchants are configured.
 
+### Clerk Webhook Configuration
+
+To sync Clerk users to your database, configure the webhook in Clerk Dashboard:
+
+1. **Webhook URL**: `https://ring-buddy-production.up.railway.app/webhooks/clerk`
+2. **Events**: Subscribe to `user.created`
+3. **Signing Secret**: Copy the webhook signing secret from Clerk Dashboard
+4. **Environment Variable**: Add `CLERK_WEBHOOK_SIGNING_SECRET` to your Railway environment variables
+
+When a new user is created in Clerk, the webhook will automatically create a corresponding user record in your Supabase `users` table with:
+- `clerk_user_id`
+- `email`
+- `first_name`
+- `last_name`
+
 ### Development
 
 ```bash
@@ -195,6 +210,12 @@ All API endpoints require a `merchant_id` to identify which Square seller accoun
 | `/bookings/cancel` | POST | Cancel an appointment |
 | `/bookings/list` | POST | List bookings with filters |
 
+### Webhook Endpoints (`/webhooks`)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/webhooks/clerk` | POST | Clerk webhook endpoint for `user.created` events |
+
 ### System Endpoints
 
 | Endpoint | Method | Description |
@@ -202,9 +223,18 @@ All API endpoints require a `merchant_id` to identify which Square seller accoun
 | `/health` | GET | Health check endpoint |
 | `/` | GET | API documentation |
 
+## Production URL
+
+The production API is deployed at:
+```
+https://ring-buddy-production.up.railway.app
+```
+
 ## Example cURL Commands
 
-Replace `BASE_URL` with your deployment URL (e.g., `https://ring-buddy-production.up.railway.app`).
+Replace `BASE_URL` with your deployment URL:
+- **Production**: `https://ring-buddy-production.up.railway.app`
+- **Local**: `http://localhost:3000`
 
 ### Health Check
 
@@ -443,6 +473,18 @@ curl -X POST $BASE_URL/example \
   -d '{"arguments": {"message": "Hello from voice agent!"}}'
 ```
 
+### Webhooks
+
+```bash
+# Get webhook endpoint info
+curl $BASE_URL/webhooks/clerk
+
+# Note: Clerk webhooks require signature verification
+# The webhook endpoint is configured in Clerk Dashboard:
+# URL: https://ring-buddy-production.up.railway.app/webhooks/clerk
+# Event: user.created
+```
+
 ## Testing
 
 Run the integration test suite:
@@ -479,6 +521,7 @@ In Railway's dashboard, add the following environment variables:
 | `DATABASE_URL` | PostgreSQL connection string (pooled) |
 | `DIRECT_URL` | PostgreSQL direct connection for migrations |
 | `ENCRYPTION_KEY` | Encryption key for merchant tokens (generate with `openssl rand -base64 32`) |
+| `CLERK_WEBHOOK_SIGNING_SECRET` | Clerk webhook signing secret (from Clerk Dashboard → Webhooks) |
 | `NODE_ENV` | Set to `production` for production deployment |
 
 **Note:** Square access tokens are now stored per-merchant in the database. After deployment, use `bun run merchant:add` to add merchants.

@@ -10,6 +10,7 @@ import services from './functions/services/api';
 import staff from './functions/staff/api';
 import availability from './functions/availability/api';
 import bookings from './functions/bookings/api';
+import webhooks from './functions/webhooks/api';
 
 // Import merchant middleware
 import { merchantMiddleware } from './lib/middleware';
@@ -94,6 +95,7 @@ app.route('/services', services);
 app.route('/staff', staff);
 app.route('/availability', availability);
 app.route('/bookings', bookings);
+app.route('/webhooks', webhooks);
 
 // 404 handler
 app.notFound((c) => {

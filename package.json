@@ -20,6 +20,7 @@
     "merchant:list": "bun run scripts/list-merchants.ts"
   },
   "dependencies": {
+    "@clerk/backend": "^2.29.5",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "dotenv": "^17.2.3",
