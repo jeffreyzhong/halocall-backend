@@ -23,19 +23,14 @@ function transformService(
   
   // Item name is the service name (e.g., "Women's Haircut")
   // Variation name is the tier/option (e.g., "Regular", "Senior", "Child")
-  const itemName = itemData?.name as string | undefined;
+  const serviceName = (itemData?.name as string | undefined) || 'Unknown Service';
   const variationName = variationData?.name as string | undefined;
   
-  // Combine item name with variation name if both exist and are different
-  let displayName = itemName || variationName || 'Unknown Service';
-  if (itemName && variationName && itemName !== variationName) {
-    displayName = `${itemName} - ${variationName}`;
-  }
-  
   return {
-    id: item.id as string,
+    service_id: item.id as string,
     variation_id: variation.id as string,
-    name: displayName,
+    service_name: serviceName,
+    variation_name: variationName,
     description: itemData?.description as string | undefined,
     duration_minutes: variationData?.serviceDuration 
       ? Number(variationData.serviceDuration) / 60000 // Convert from milliseconds

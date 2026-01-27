@@ -250,9 +250,10 @@ export interface LocationInfo {
 
 /** Simplified service info for voice agent */
 export interface ServiceInfo {
-  id: string;
+  service_id: string;
   variation_id: string;
-  name: string;
+  service_name: string;
+  variation_name?: string;
   description?: string;
   duration_minutes?: number;
   price?: {
