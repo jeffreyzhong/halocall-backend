@@ -33,29 +33,46 @@ function formatBusinessHours(businessHours: { periods?: Array<Record<string, unk
     return 'Hours not available';
   }
 
-  // Square API uses abbreviated day names (MON, TUE, etc.)
+  // Square API may return abbreviated (MON) or full day names (MONDAY)
   const dayOrder = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const fullDayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
   const dayNames: Record<string, string> = {
-    'MON': 'Monday',
-    'TUE': 'Tuesday', 
-    'WED': 'Wednesday',
-    'THU': 'Thursday',
-    'FRI': 'Friday',
-    'SAT': 'Saturday',
-    'SUN': 'Sunday',
+    'MON': 'Monday', 'MONDAY': 'Monday',
+    'TUE': 'Tuesday', 'TUESDAY': 'Tuesday',
+    'WED': 'Wednesday', 'WEDNESDAY': 'Wednesday',
+    'THU': 'Thursday', 'THURSDAY': 'Thursday',
+    'FRI': 'Friday', 'FRIDAY': 'Friday',
+    'SAT': 'Saturday', 'SATURDAY': 'Saturday',
+    'SUN': 'Sunday', 'SUNDAY': 'Sunday',
+  };
+  
+  // Normalize day to abbreviated form for ordering
+  const normalizeDay = (day: string): string => {
+    const fullIndex = fullDayOrder.indexOf(day);
+    return fullIndex >= 0 ? dayOrder[fullIndex] : day;
   };
 
-  // Sort periods by day order (Square uses snake_case: day_of_week)
-  const sortedPeriods = [...businessHours.periods].sort(
-    (a, b) => dayOrder.indexOf(a.day_of_week as string) - dayOrder.indexOf(b.day_of_week as string)
-  );
+  // Sort periods by day order (handle both snake_case and camelCase)
+  const sortedPeriods = [...businessHours.periods].sort((a, b) => {
+    const dayA = normalizeDay((a.day_of_week || a.dayOfWeek) as string);
+    const dayB = normalizeDay((b.day_of_week || b.dayOfWeek) as string);
+    return dayOrder.indexOf(dayA) - dayOrder.indexOf(dayB);
+  });
 
-  // Create a map of day -> hours string (Square uses snake_case: start_local_time, end_local_time)
+  // Create a map of day -> hours string
+  // Square SDK uses camelCase (dayOfWeek, startLocalTime, endLocalTime)
+  // but raw API uses snake_case - check for both
   const dayHours: Record<string, string> = {};
   for (const period of sortedPeriods) {
-    const day = period.day_of_week as string;
-    const start = formatTime(period.start_local_time as string);
-    const end = formatTime(period.end_local_time as string);
+    const rawDay = (period.day_of_week || period.dayOfWeek) as string;
+    const day = normalizeDay(rawDay);
+    const startTime = (period.start_local_time || period.startLocalTime) as string;
+    const endTime = (period.end_local_time || period.endLocalTime) as string;
+    
+    if (!day || !startTime || !endTime) continue;
+    
+    const start = formatTime(startTime);
+    const end = formatTime(endTime);
     dayHours[day] = `${start} to ${end}`;
   }
 
