@@ -11,22 +11,20 @@ import {
 const app = new Hono();
 
 /**
- * Transform Square team member to simplified StaffInfo
+ * Transform Square team member to simplified StaffInfo (TTS-optimized)
  */
 function transformStaffMember(
   member: Record<string, unknown>,
   bookingProfile?: Record<string, unknown>
 ): StaffInfo {
+  const displayName = bookingProfile?.displayName as string | undefined;
+  const givenName = member.givenName as string | undefined;
+  const familyName = member.familyName as string | undefined;
+  const name = displayName || [givenName, familyName].filter(Boolean).join(' ') || 'Unknown';
+  
   return {
-    id: member.id as string,
-    given_name: member.givenName as string | undefined,
-    family_name: member.familyName as string | undefined,
-    display_name: bookingProfile?.displayName as string | undefined 
-      || `${member.givenName || ''} ${member.familyName || ''}`.trim() 
-      || undefined,
-    email: member.emailAddress as string | undefined,
-    phone_number: member.phoneNumber as string | undefined,
-    is_bookable: bookingProfile?.isBookable as boolean | undefined,
+    team_member_id: member.id as string,
+    name,
   };
 }
 
@@ -77,9 +75,8 @@ app.post('/list', async (c) => {
       } catch {
         // If we can't get the team member details, use profile info
         staffMembers.push({
-          id: teamMemberId,
-          display_name: p.displayName as string | undefined,
-          is_bookable: p.isBookable as boolean | undefined,
+          team_member_id: teamMemberId,
+          name: (p.displayName as string | undefined) || 'Unknown',
         });
       }
     }

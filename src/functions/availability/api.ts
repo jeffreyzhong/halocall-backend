@@ -107,19 +107,15 @@ app.post('/search', async (c) => {
 
     const slots: AvailabilitySlot[] = availabilities.map((avail) => {
       const a = avail as unknown as Record<string, unknown>;
-      const appointmentSegments = a.appointmentSegments as Array<Record<string, unknown>> | undefined;
       
       return {
         start_at: a.startAt as string,
-        location_id: a.locationId as string,
-        team_member_id: appointmentSegments?.[0]?.teamMemberId as string | undefined,
-        service_variation_id: appointmentSegments?.[0]?.serviceVariationId as string || args.service_variation_id,
-        formatted_time: formatTimeSlot(a.startAt as string, timezone),
+        appointment_time: formatTimeSlot(a.startAt as string, timezone),
       };
     });
 
     // Group slots by date for easier voice agent presentation
-    const slotsByDate: Record<string, AvailabilitySlot[]> = {};
+    const slotsByDate: Record<string, string[]> = {};
     for (const slot of slots) {
       const date = new Date(slot.start_at).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -130,20 +126,22 @@ app.post('/search', async (c) => {
       if (!slotsByDate[date]) {
         slotsByDate[date] = [];
       }
-      slotsByDate[date].push(slot);
+      // Just store the time portion for easier TTS
+      const time = new Date(slot.start_at).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: timezone,
+      });
+      slotsByDate[date].push(time);
     }
 
     return c.json(successResponse({
       total_slots: slots.length,
+      message: slots.length > 0 
+        ? `Found ${slots.length} available time slots`
+        : 'No available time slots found for the selected dates',
       slots,
       slots_by_date: slotsByDate,
-      search_criteria: {
-        location_id: args.location_id,
-        service_variation_id: args.service_variation_id,
-        start_date: args.start_date,
-        end_date: args.end_date,
-        staff_member_ids: args.staff_member_ids,
-      },
     }));
   } catch (error) {
     console.error('Availability search error:', error);

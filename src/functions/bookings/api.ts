@@ -21,11 +21,10 @@ function generateIdempotencyKey(): string {
 }
 
 /**
- * Format booking time for voice agent
+ * Format date/time for TTS (e.g., "Tuesday, January 15 at 2:00 PM")
  */
-function formatBookingTime(isoDate: string, timezone?: string): string {
-  const date = new Date(isoDate);
-  return date.toLocaleString('en-US', {
+function formatDateTime(isoDate: string, timezone?: string): string {
+  return new Date(isoDate).toLocaleString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -36,11 +35,43 @@ function formatBookingTime(isoDate: string, timezone?: string): string {
 }
 
 /**
- * Transform Square booking to simplified BookingInfo
+ * Format duration for TTS (e.g., "1 hour" or "45 minutes")
+ */
+function formatDuration(minutes: number): string {
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minutes`;
+    }
+    return `${hours} hour${hours > 1 ? 's' : ''}`;
+  }
+  return `${minutes} minutes`;
+}
+
+/**
+ * Format booking status for TTS (e.g., "confirmed" instead of "ACCEPTED")
+ */
+function formatStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'PENDING': 'pending',
+    'ACCEPTED': 'confirmed',
+    'CANCELLED': 'cancelled',
+    'CANCELLED_BY_SELLER': 'cancelled',
+    'CANCELLED_BY_CUSTOMER': 'cancelled',
+    'DECLINED': 'declined',
+    'NO_SHOW': 'no show',
+  };
+  return statusMap[status] || status.toLowerCase();
+}
+
+/**
+ * Transform Square booking to simplified BookingInfo (TTS-optimized)
  */
 async function transformBooking(booking: Record<string, unknown>): Promise<BookingInfo> {
   const appointmentSegments = booking.appointmentSegments as Array<Record<string, unknown>> | undefined;
   const startAt = booking.startAt as string;
+  const durationMinutes = appointmentSegments?.[0]?.durationMinutes as number | undefined;
   
   // Try to get location name
   let locationName: string | undefined;
@@ -57,51 +88,66 @@ async function transformBooking(booking: Record<string, unknown>): Promise<Booki
     try {
       const custResponse = await squareClient.customers.get({ customerId: booking.customerId as string });
       const customer = custResponse.customer as unknown as Record<string, unknown>;
-      customerName = `${customer.givenName || ''} ${customer.familyName || ''}`.trim() || undefined;
+      customerName = [customer.givenName, customer.familyName].filter(Boolean).join(' ') || undefined;
     } catch {
       // Ignore error
     }
   }
 
   // Try to get team member name
-  let teamMemberName: string | undefined;
+  let staffName: string | undefined;
   const teamMemberId = appointmentSegments?.[0]?.teamMemberId as string | undefined;
   if (teamMemberId) {
     try {
       const memberResponse = await squareClient.teamMembers.get({ teamMemberId });
       const member = memberResponse.teamMember as unknown as Record<string, unknown>;
-      teamMemberName = `${member.givenName || ''} ${member.familyName || ''}`.trim() || undefined;
+      staffName = [member.givenName, member.familyName].filter(Boolean).join(' ') || undefined;
     } catch {
       // Ignore error
     }
   }
 
-  // Try to get service name
+  // Try to get service name (get the parent item name, not variation)
   let serviceName: string | undefined;
   const serviceVariationId = appointmentSegments?.[0]?.serviceVariationId as string | undefined;
   if (serviceVariationId) {
     try {
-      const catalogResponse = await squareClient.catalog.object.get({ objectId: serviceVariationId });
+      const catalogResponse = await squareClient.catalog.object.get({ 
+        objectId: serviceVariationId,
+        includeRelatedObjects: true,
+      });
       const variation = catalogResponse.object as unknown as Record<string, unknown>;
       const variationData = variation?.itemVariationData as Record<string, unknown> | undefined;
-      serviceName = variationData?.name as string | undefined;
+      const itemId = variationData?.itemId as string | undefined;
+      
+      // Try to get the parent item name
+      if (itemId && catalogResponse.relatedObjects) {
+        const parentItem = (catalogResponse.relatedObjects as Array<Record<string, unknown>>)
+          .find((obj) => obj.id === itemId);
+        if (parentItem) {
+          const itemData = parentItem.itemData as Record<string, unknown> | undefined;
+          serviceName = itemData?.name as string | undefined;
+        }
+      }
+      
+      // Fallback to variation name
+      if (!serviceName) {
+        serviceName = variationData?.name as string | undefined;
+      }
     } catch {
       // Ignore error
     }
   }
 
   return {
-    id: booking.id as string,
-    status: booking.status as string,
+    booking_id: booking.id as string,
+    status: formatStatus(booking.status as string),
     start_at: startAt,
-    formatted_time: formatBookingTime(startAt),
-    duration_minutes: appointmentSegments?.[0]?.durationMinutes as number | undefined,
-    location_id: booking.locationId as string,
+    appointment_time: formatDateTime(startAt),
+    duration: durationMinutes ? formatDuration(durationMinutes) : undefined,
     location_name: locationName,
-    customer_id: booking.customerId as string | undefined,
     customer_name: customerName,
-    team_member_id: teamMemberId,
-    team_member_name: teamMemberName,
+    staff_name: staffName,
     service_name: serviceName,
     customer_note: booking.customerNote as string | undefined,
     version: booking.version as number,

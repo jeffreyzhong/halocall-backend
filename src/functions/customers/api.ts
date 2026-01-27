@@ -39,17 +39,63 @@ function formatPhoneNumber(phone: string): string {
 }
 
 /**
- * Transform Square customer to simplified CustomerInfo
+ * Format date/time for TTS (e.g., "Tuesday, January 15 at 2:00 PM")
+ */
+function formatDateTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Format duration for TTS (e.g., "1 hour" or "45 minutes")
+ */
+function formatDuration(minutes: number): string {
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minutes`;
+    }
+    return `${hours} hour${hours > 1 ? 's' : ''}`;
+  }
+  return `${minutes} minutes`;
+}
+
+/**
+ * Format booking status for TTS (e.g., "confirmed" instead of "ACCEPTED")
+ */
+function formatStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'PENDING': 'pending',
+    'ACCEPTED': 'confirmed',
+    'CANCELLED': 'cancelled',
+    'CANCELLED_BY_SELLER': 'cancelled',
+    'CANCELLED_BY_CUSTOMER': 'cancelled',
+    'DECLINED': 'declined',
+    'NO_SHOW': 'no show',
+  };
+  return statusMap[status] || status.toLowerCase();
+}
+
+/**
+ * Transform Square customer to simplified CustomerInfo (TTS-optimized)
  */
 function transformCustomer(customer: Record<string, unknown>): CustomerInfo {
+  const givenName = customer.givenName as string | undefined;
+  const familyName = customer.familyName as string | undefined;
+  const fullName = [givenName, familyName].filter(Boolean).join(' ') || 'Unknown';
+  
   return {
-    id: customer.id as string,
-    given_name: customer.givenName as string | undefined,
-    family_name: customer.familyName as string | undefined,
+    customer_id: customer.id as string,
+    name: fullName,
     email: customer.emailAddress as string | undefined,
     phone_number: customer.phoneNumber as string | undefined,
     note: customer.note as string | undefined,
-    created_at: customer.createdAt as string | undefined,
   };
 }
 
@@ -235,22 +281,15 @@ app.post('/bookings', async (c) => {
       const b = booking as unknown as Record<string, unknown>;
       const startAt = b.startAt as string;
       const appointmentSegments = b.appointmentSegments as Array<Record<string, unknown>> | undefined;
+      const durationMinutes = appointmentSegments?.[0]?.durationMinutes as number | undefined;
+      const status = b.status as string;
       
       bookings.push({
-        id: b.id as string,
-        status: b.status as string,
+        booking_id: b.id as string,
+        status: formatStatus(status),
         start_at: startAt,
-        formatted_time: new Date(startAt).toLocaleString('en-US', {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-        }),
-        duration_minutes: appointmentSegments?.[0]?.durationMinutes as number | undefined,
-        location_id: b.locationId as string,
-        customer_id: b.customerId as string | undefined,
-        team_member_id: appointmentSegments?.[0]?.teamMemberId as string | undefined,
+        appointment_time: formatDateTime(startAt),
+        duration: durationMinutes ? formatDuration(durationMinutes) : undefined,
         customer_note: b.customerNote as string | undefined,
         version: b.version as number,
       });

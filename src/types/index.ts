@@ -215,37 +215,29 @@ export interface BookingListArgs {
 }
 
 // ============================================================================
-// Simplified Response Types for Voice Agent
+// Simplified Response Types for Voice Agent (TTS-optimized)
 // ============================================================================
 
 /** Simplified customer info for voice agent */
 export interface CustomerInfo {
-  id: string;
-  given_name?: string;
-  family_name?: string;
+  customer_id: string;
+  /** Full name, e.g., "John Smith" */
+  name: string;
   email?: string;
   phone_number?: string;
   note?: string;
-  created_at?: string;
 }
 
 /** Simplified location info for voice agent */
 export interface LocationInfo {
-  id: string;
+  location_id: string;
+  /** Location name, e.g., "Downtown Salon" */
   name: string;
-  address?: {
-    address_line_1?: string;
-    locality?: string;
-    administrative_district_level_1?: string;
-    postal_code?: string;
-  };
+  /** Human-readable address, e.g., "123 Main St, Seattle, WA 98101" */
+  address?: string;
   phone_number?: string;
-  business_hours?: Array<{
-    day_of_week: string;
-    start_local_time: string;
-    end_local_time: string;
-  }>;
-  timezone?: string;
+  /** Human-readable hours, e.g., "Monday: 9:00 AM - 5:00 PM, Tuesday: 9:00 AM - 5:00 PM" */
+  business_hours?: string;
 }
 
 /** Simplified service info for voice agent */
@@ -255,48 +247,43 @@ export interface ServiceInfo {
   service_name: string;
   variation_name?: string;
   description?: string;
-  /** Human-readable duration, e.g., "60 minutes" */
+  /** Human-readable duration, e.g., "1 hour" or "45 minutes" */
   duration?: string;
-  /** Human-readable price, e.g., "$120.00" */
+  /** Human-readable price, e.g., "$120" */
   price?: string;
 }
 
 /** Simplified staff info for voice agent */
 export interface StaffInfo {
-  id: string;
-  given_name?: string;
-  family_name?: string;
-  display_name?: string;
-  email?: string;
-  phone_number?: string;
-  is_bookable?: boolean;
+  team_member_id: string;
+  /** Display name, e.g., "Sarah Johnson" */
+  name: string;
 }
 
 /** Simplified availability slot for voice agent */
 export interface AvailabilitySlot {
+  /** ISO timestamp (for booking creation) */
   start_at: string;
-  location_id: string;
-  team_member_id?: string;
-  service_variation_id: string;
   /** Human-readable time, e.g., "Tuesday, January 15 at 2:00 PM" */
-  formatted_time?: string;
+  appointment_time: string;
 }
 
 /** Simplified booking info for voice agent */
 export interface BookingInfo {
-  id: string;
+  booking_id: string;
+  /** Human-readable status, e.g., "confirmed", "cancelled" */
   status: string;
+  /** ISO timestamp (for updates) */
   start_at: string;
-  /** Human-readable time */
-  formatted_time?: string;
-  duration_minutes?: number;
-  location_id: string;
+  /** Human-readable time, e.g., "Tuesday, January 15 at 2:00 PM" */
+  appointment_time: string;
+  /** Human-readable duration, e.g., "1 hour" */
+  duration?: string;
   location_name?: string;
-  customer_id?: string;
   customer_name?: string;
-  team_member_id?: string;
-  team_member_name?: string;
+  staff_name?: string;
   service_name?: string;
   customer_note?: string;
+  /** Required for updates/cancellations */
   version: number;
 }

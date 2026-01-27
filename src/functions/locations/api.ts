@@ -10,50 +10,68 @@ import {
 const app = new Hono();
 
 /**
- * Transform Square location to simplified LocationInfo
+ * Format time from 24h to 12h format (e.g., "09:00:00" -> "9:00 AM")
+ */
+function formatTime(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
+/**
+ * Format business hours into human-readable format for TTS
+ */
+function formatBusinessHours(businessHours: { periods?: Array<Record<string, unknown>> } | undefined): string {
+  if (!businessHours?.periods || businessHours.periods.length === 0) {
+    return 'Hours not available';
+  }
+
+  const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  const sortedPeriods = [...businessHours.periods].sort(
+    (a, b) => dayOrder.indexOf(a.dayOfWeek as string) - dayOrder.indexOf(b.dayOfWeek as string)
+  );
+
+  return sortedPeriods
+    .map((period) => {
+      const day = (period.dayOfWeek as string).charAt(0) + (period.dayOfWeek as string).slice(1).toLowerCase();
+      const start = formatTime(period.startLocalTime as string);
+      const end = formatTime(period.endLocalTime as string);
+      return `${day}: ${start} to ${end}`;
+    })
+    .join(', ');
+}
+
+/**
+ * Format address for TTS
+ */
+function formatAddress(address: Record<string, unknown> | undefined): string | undefined {
+  if (!address) return undefined;
+  
+  const parts = [
+    address.addressLine1 as string,
+    address.locality as string,
+    address.administrativeDistrictLevel1 as string,
+    address.postalCode as string,
+  ].filter(Boolean);
+  
+  return parts.length > 0 ? parts.join(', ') : undefined;
+}
+
+/**
+ * Transform Square location to simplified LocationInfo (TTS-optimized)
  */
 function transformLocation(location: Record<string, unknown>): LocationInfo {
   const businessHours = location.businessHours as { periods?: Array<Record<string, unknown>> } | undefined;
   const address = location.address as Record<string, unknown> | undefined;
   
   return {
-    id: location.id as string,
+    location_id: location.id as string,
     name: location.name as string,
-    address: address ? {
-      address_line_1: address.addressLine1 as string | undefined,
-      locality: address.locality as string | undefined,
-      administrative_district_level_1: address.administrativeDistrictLevel1 as string | undefined,
-      postal_code: address.postalCode as string | undefined,
-    } : undefined,
+    address: formatAddress(address),
     phone_number: location.phoneNumber as string | undefined,
-    business_hours: businessHours?.periods?.map((period) => ({
-      day_of_week: period.dayOfWeek as string,
-      start_local_time: period.startLocalTime as string,
-      end_local_time: period.endLocalTime as string,
-    })),
-    timezone: location.timezone as string | undefined,
+    business_hours: formatBusinessHours(businessHours),
   };
-}
-
-/**
- * Format business hours into human-readable format
- */
-function formatBusinessHours(hours?: LocationInfo['business_hours']): string {
-  if (!hours || hours.length === 0) {
-    return 'Hours not available';
-  }
-
-  const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-  const sortedHours = [...hours].sort(
-    (a, b) => dayOrder.indexOf(a.day_of_week) - dayOrder.indexOf(b.day_of_week)
-  );
-
-  return sortedHours
-    .map((h) => {
-      const day = h.day_of_week.charAt(0) + h.day_of_week.slice(1).toLowerCase();
-      return `${day}: ${h.start_local_time} - ${h.end_local_time}`;
-    })
-    .join(', ');
 }
 
 /**
@@ -65,16 +83,7 @@ app.post('/list', async (c) => {
 
     const locations = (response.locations || [])
       .filter((loc) => (loc as unknown as Record<string, unknown>).status === 'ACTIVE')
-      .map((loc) => {
-        const location = transformLocation(loc as unknown as Record<string, unknown>);
-        return {
-          ...location,
-          formatted_hours: formatBusinessHours(location.business_hours),
-          formatted_address: location.address
-            ? `${location.address.address_line_1 || ''}, ${location.address.locality || ''}, ${location.address.administrative_district_level_1 || ''} ${location.address.postal_code || ''}`.trim()
-            : undefined,
-        };
-      });
+      .map((loc) => transformLocation(loc as unknown as Record<string, unknown>));
 
     return c.json(successResponse({
       count: locations.length,
@@ -106,15 +115,7 @@ app.post('/get', async (c) => {
 
     const location = transformLocation(response.location as unknown as Record<string, unknown>);
 
-    return c.json(successResponse({
-      location: {
-        ...location,
-        formatted_hours: formatBusinessHours(location.business_hours),
-        formatted_address: location.address
-          ? `${location.address.address_line_1 || ''}, ${location.address.locality || ''}, ${location.address.administrative_district_level_1 || ''} ${location.address.postal_code || ''}`.trim()
-          : undefined,
-      },
-    }));
+    return c.json(successResponse({ location }));
   } catch (error) {
     console.error('Location get error:', error);
     return c.json(errorResponse(handleSquareError(error)), 500);
