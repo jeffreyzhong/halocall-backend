@@ -76,11 +76,10 @@ NODE_ENV=development
 To sync Clerk users to your database, configure the webhook in Clerk Dashboard:
 
 1. **Webhook URL**: `https://ring-buddy-production.up.railway.app/webhooks/clerk`
-2. **Events**: Subscribe to all six:
-   - `user.created` - Creates user records when new users sign up
+2. **Events**: Subscribe to all five:
    - `user.updated` - Updates user records when their information changes (email, name, etc.)
    - `user.deleted` - Deletes user records when users are deleted in Clerk
-   - `organizationMembership.created` - Updates user's organization when they join an organization
+   - `organizationMembership.created` - Creates user record and sets organization when they join an organization
    - `organizationMembership.updated` - Updates user's organization when their membership changes (e.g., role change)
    - `organizationMembership.deleted` - Removes user's organization when they leave an organization
 3. **Signing Secret**: Copy the webhook signing secret from Clerk Dashboard
@@ -88,16 +87,7 @@ To sync Clerk users to your database, configure the webhook in Clerk Dashboard:
 
 **How it works:**
 
-1. **`user.created` webhook**: When a new user is created in Clerk, the webhook will:
-   - Verify the webhook signature
-   - Automatically create a corresponding user record in your Supabase `users` table with:
-     - `clerk_user_id`
-     - `email`
-     - `first_name`
-     - `last_name`
-     - `clerk_organization_id` (initially `null`)
-
-2. **`user.updated` webhook**: When a user's information is updated in Clerk (email, name, etc.), the webhook will:
+1. **`user.updated` webhook**: When a user's information is updated in Clerk (email, name, etc.), the webhook will:
    - Verify the webhook signature
    - Update the corresponding user record in your Supabase `users` table with:
      - `email` (updated primary email)
@@ -106,22 +96,28 @@ To sync Clerk users to your database, configure the webhook in Clerk Dashboard:
    - If the user doesn't exist yet (webhook order edge case), it will be handled gracefully
    - Note: Organization ID is not updated here - that's handled by organizationMembership webhooks
 
-3. **`user.deleted` webhook**: When a user is deleted in Clerk, the webhook will:
+2. **`user.deleted` webhook**: When a user is deleted in Clerk, the webhook will:
    - Verify the webhook signature
    - Delete the corresponding user record from your Supabase `users` table
    - If the user doesn't exist (already deleted), it will be handled gracefully
 
-4. **`organizationMembership.created` webhook**: When a user joins an organization, the webhook will:
+3. **`organizationMembership.created` webhook**: When a user joins an organization, the webhook will:
    - Verify the webhook signature
-   - Update the user's `clerk_organization_id` in the database
-   - If the user doesn't exist yet (webhook order edge case), it will be handled gracefully
+   - Create a new user record in your Supabase `users` table if the user doesn't exist, or update existing user
+   - Sets the user's `clerk_organization_id` in the database
+   - User information is extracted from `public_user_data` in the webhook payload:
+     - `clerk_user_id` (from `public_user_data.user_id`)
+     - `email` (from `public_user_data.identifier`)
+     - `first_name` (from `public_user_data.first_name`)
+     - `last_name` (from `public_user_data.last_name`)
+     - `clerk_organization_id` (from `organization.id`)
 
-5. **`organizationMembership.updated` webhook**: When a user's organization membership is updated (e.g., role change), the webhook will:
+4. **`organizationMembership.updated` webhook**: When a user's organization membership is updated (e.g., role change), the webhook will:
    - Verify the webhook signature
    - Update the user's `clerk_organization_id` in the database to ensure it's current
    - If the user doesn't exist yet (webhook order edge case), it will be handled gracefully
 
-6. **`organizationMembership.deleted` webhook**: When a user leaves an organization, the webhook will:
+5. **`organizationMembership.deleted` webhook**: When a user leaves an organization, the webhook will:
    - Verify the webhook signature
    - Set the user's `clerk_organization_id` to `null` in the database
    - Only updates if the user's current organization matches the one being deleted (handles edge cases)
@@ -254,7 +250,7 @@ All API endpoints require a `merchant_id` to identify which Square seller accoun
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/webhooks/clerk` | POST | Clerk webhook endpoint for `user.created`, `user.updated`, `user.deleted`, `organizationMembership.created`, `organizationMembership.updated`, and `organizationMembership.deleted` events |
+| `/webhooks/clerk` | POST | Clerk webhook endpoint for `user.updated`, `user.deleted`, `organizationMembership.created`, `organizationMembership.updated`, and `organizationMembership.deleted` events |
 
 ### System Endpoints
 
@@ -522,7 +518,7 @@ curl $BASE_URL/webhooks/clerk
 # Note: Clerk webhooks require signature verification
 # The webhook endpoint is configured in Clerk Dashboard:
 # URL: https://ring-buddy-production.up.railway.app/webhooks/clerk
-# Events: user.created, user.updated, user.deleted, organizationMembership.created, organizationMembership.updated, organizationMembership.deleted
+# Events: user.updated, user.deleted, organizationMembership.created, organizationMembership.updated, organizationMembership.deleted
 ```
 
 ## Testing

@@ -9,10 +9,9 @@ const app = new Hono();
  * Clerk webhook endpoint
  * 
  * Handles webhooks from Clerk:
- * - user.created: Creates a new user record in the Supabase users table
  * - user.updated: Updates user record when their information changes (email, name, etc.)
  * - user.deleted: Deletes the user record from the Supabase users table
- * - organizationMembership.created: Updates user's organization_id when they join an organization
+ * - organizationMembership.created: Creates user record and sets organization_id when they join an organization
  * - organizationMembership.updated: Updates user's organization_id when their membership changes (e.g., role change)
  * - organizationMembership.deleted: Sets user's organization_id to null when they leave an organization
  */
@@ -38,73 +37,6 @@ app.post('/clerk', async (c) => {
       return c.json(errorResponse('Invalid webhook signature'), 401);
     }
 
-    // Handle user.created event
-    if (evt.type === 'user.created') {
-      const webhookUserData = evt.data;
-      
-      // Extract user ID from webhook payload
-      const clerkUserId = webhookUserData.id;
-      
-      if (!clerkUserId) {
-        console.error('Missing user ID in webhook payload');
-        return c.json(errorResponse('Invalid webhook payload: missing user ID'), 400);
-      }
-
-      // Check if user already exists (idempotency)
-      const existingUser = await prisma.users.findUnique({
-        where: { clerk_user_id: clerkUserId },
-      });
-
-      if (existingUser) {
-        console.log('User already exists:', clerkUserId);
-        return c.json(
-          successResponse({
-            message: 'User already exists',
-            clerk_user_id: clerkUserId,
-          }),
-          200
-        );
-      }
-
-      // Get primary email address from webhook payload
-      const primaryEmail = webhookUserData.email_addresses?.find(
-        (email: any) => email.id === webhookUserData.primary_email_address_id
-      )?.email_address || webhookUserData.email_addresses?.[0]?.email_address;
-
-      if (!primaryEmail) {
-        console.error('No email found for user:', clerkUserId);
-        return c.json(errorResponse('User has no email address'), 400);
-      }
-
-      // Extract first and last name from webhook payload
-      const firstName = webhookUserData.first_name || '';
-      const lastName = webhookUserData.last_name || '';
-
-      // Create new user in database
-      // Organization info will be set when organizationMembership.created webhook is received
-      const newUser = await prisma.users.create({
-        data: {
-          clerk_user_id: clerkUserId,
-          email: primaryEmail,
-          first_name: firstName,
-          last_name: lastName,
-          clerk_organization_id: null, // Will be updated by organizationMembership.created webhook
-        },
-      });
-
-      console.log('Created new user:', newUser.id, clerkUserId);
-
-      return c.json(
-        successResponse({
-          message: 'User created successfully',
-          user_id: newUser.id.toString(),
-          clerk_user_id: clerkUserId,
-          email: primaryEmail,
-        }),
-        201
-      );
-    }
-
     // Handle user.updated event
     if (evt.type === 'user.updated') {
       const webhookUserData = evt.data;
@@ -124,11 +56,10 @@ app.post('/clerk', async (c) => {
 
       if (!existingUser) {
         console.warn('User not found in database when processing user.updated:', clerkUserId);
-        // User doesn't exist - this might happen if user.updated fires before user.created
-        // We could create the user here, but it's safer to wait for user.created
+        // User doesn't exist - they will be created when they join an organization
         return c.json(
           successResponse({
-            message: 'User not found - will be created when user.created webhook is received',
+            message: 'User not found - will be created when organizationMembership.created webhook is received',
             clerk_user_id: clerkUserId,
           }),
           200
@@ -225,6 +156,7 @@ app.post('/clerk', async (c) => {
       // Extract user ID and organization ID from webhook payload
       const clerkUserId = membershipData.public_user_data?.user_id;
       const organizationId = membershipData.organization?.id;
+      const publicUserData = membershipData.public_user_data;
       
       if (!clerkUserId) {
         console.error('Missing user ID in organizationMembership.created webhook payload');
@@ -236,22 +168,43 @@ app.post('/clerk', async (c) => {
         return c.json(errorResponse('Invalid webhook payload: missing organization ID'), 400);
       }
       
+      // Extract user information from public_user_data
+      const email = publicUserData?.identifier || '';
+      const firstName = publicUserData?.first_name || '';
+      const lastName = publicUserData?.last_name || '';
+      
+      if (!email) {
+        console.error('Missing email in organizationMembership.created webhook payload');
+        return c.json(errorResponse('Invalid webhook payload: missing email'), 400);
+      }
+      
       // Find the user in the database
       const existingUser = await prisma.users.findUnique({
         where: { clerk_user_id: clerkUserId },
       });
       
       if (!existingUser) {
-        console.warn('User not found in database when processing organizationMembership.created:', clerkUserId);
-        // User might not exist yet if organizationMembership.created fires before user.created
-        // This is okay - we'll update when user.created fires, or they can be updated later
+        // Create user record with organization info
+        const newUser = await prisma.users.create({
+          data: {
+            clerk_user_id: clerkUserId,
+            email: email,
+            first_name: firstName,
+            last_name: lastName,
+            clerk_organization_id: organizationId,
+          },
+        });
+        
+        console.log('Created new user with organization:', newUser.id, clerkUserId, organizationId);
+        
         return c.json(
           successResponse({
-            message: 'User not found - will be updated when user record is created',
+            message: 'User created with organization successfully',
             clerk_user_id: clerkUserId,
             organization_id: organizationId,
+            user_id: newUser.id.toString(),
           }),
-          200
+          201
         );
       }
       
@@ -301,10 +254,10 @@ app.post('/clerk', async (c) => {
       
       if (!existingUser) {
         console.warn('User not found in database when processing organizationMembership.updated:', clerkUserId);
-        // User might not exist yet - this is okay, just acknowledge
+        // User might not exist yet - they will be created when organizationMembership.created fires
         return c.json(
           successResponse({
-            message: 'User not found - will be updated when user record is created',
+            message: 'User not found - will be created when organizationMembership.created webhook is received',
             clerk_user_id: clerkUserId,
             organization_id: organizationId,
           }),
@@ -442,7 +395,6 @@ app.get('/clerk', (c) => {
     method: 'POST',
     endpoint: '/webhooks/clerk',
     events: [
-      'user.created',
       'user.updated',
       'user.deleted',
       'organizationMembership.created',
