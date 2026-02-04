@@ -1,10 +1,10 @@
-# Ring Buddy
+# HaloCall
 
 Webhook API endpoints for AI voice agents to manage Square appointments. Built with [Hono](https://hono.dev/) and [Bun](https://bun.sh/).
 
 ## Overview
 
-Ring Buddy provides a complete set of API endpoints that enable AI voice agents to book, modify, and cancel appointments for Square sellers (spas, salons, and other service businesses). The endpoints integrate with Square's Bookings API and related services.
+HaloCall provides a complete set of API endpoints that enable AI voice agents to book, modify, and cancel appointments for Square sellers (spas, salons, and other service businesses). The endpoints integrate with Square's Bookings API and related services.
 
 ## Tech Stack
 
@@ -16,7 +16,7 @@ Ring Buddy provides a complete set of API endpoints that enable AI voice agents 
 ## Project Structure
 
 ```
-ring-buddy/
+halocall/
 ├── src/
 │   ├── index.ts              # Main Hono app entry point
 │   ├── lib/
@@ -75,7 +75,7 @@ NODE_ENV=development
 
 To sync Clerk users to your database, configure the webhook in Clerk Dashboard:
 
-1. **Webhook URL**: `https://ring-buddy-production.up.railway.app/webhooks/clerk`
+1. **Webhook URL**: `https://halocall-production.up.railway.app/webhooks/clerk`
 2. **Events**: Subscribe to all five:
    - `user.updated` - Updates user records when their information changes (email, name, etc.)
    - `user.deleted` - Deletes user records when users are deleted in Clerk
@@ -138,7 +138,7 @@ bun run typecheck
 
 ## Multi-Tenant Setup
 
-Ring Buddy supports multiple Square sellers (merchants) in a single deployment. Each merchant has their own encrypted Square credentials stored in the database.
+HaloCall supports multiple Square sellers (merchants) in a single deployment. Each merchant has their own encrypted Square credentials stored in the database.
 
 ### Database Setup
 
@@ -263,13 +263,13 @@ All API endpoints require a `merchant_id` to identify which Square seller accoun
 
 The production API is deployed at:
 ```
-https://ring-buddy-production.up.railway.app
+https://halocall-production.up.railway.app
 ```
 
 ## Example cURL Commands
 
 Replace `BASE_URL` with your deployment URL:
-- **Production**: `https://ring-buddy-production.up.railway.app`
+- **Production**: `https://halocall-production.up.railway.app`
 - **Local**: `http://localhost:3000`
 
 ### Health Check
@@ -501,7 +501,7 @@ curl -X POST $BASE_URL/bookings/list \
 # Echo a message
 curl -X POST $BASE_URL/example \
   -H "Content-Type: application/json" \
-  -d '{"message": "Hello, Ring Buddy!"}'
+  -d '{"message": "Hello, HaloCall!"}'
 
 # With arguments wrapper (voice agent format)
 curl -X POST $BASE_URL/example \
@@ -517,7 +517,7 @@ curl $BASE_URL/webhooks/clerk
 
 # Note: Clerk webhooks require signature verification
 # The webhook endpoint is configured in Clerk Dashboard:
-# URL: https://ring-buddy-production.up.railway.app/webhooks/clerk
+# URL: https://halocall-production.up.railway.app/webhooks/clerk
 # Events: user.updated, user.deleted, organizationMembership.created, organizationMembership.updated, organizationMembership.deleted
 ```
 

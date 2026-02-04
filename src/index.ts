@@ -41,7 +41,7 @@ app.get('/health', (c) => {
 // API documentation endpoint
 app.get('/', (c) => {
   return c.json({
-    name: 'Ring Buddy API',
+    name: 'HaloCall API',
     description: 'Webhook API endpoints for AI voice agent to manage Square appointments',
     version: '2.0.0',
     authentication: {
@@ -110,7 +110,7 @@ app.onError((err, c) => {
 
 const port = Number(process.env.PORT) || 3000;
 
-console.log(`🚀 Ring Buddy server starting on 0.0.0.0:${port}`);
+console.log(`🚀 HaloCall server starting on 0.0.0.0:${port}`);
 
 // Use Bun's automatic server startup via default export
 // hostname: '0.0.0.0' is required for Railway to accept external connections

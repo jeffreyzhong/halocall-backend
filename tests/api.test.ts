@@ -1,8 +1,8 @@
 /**
- * API Integration Tests for Ring Buddy
+ * API Integration Tests for HaloCall
  *
  * These tests run against the production deployment at:
- * https://ring-buddy-production.up.railway.app
+ * https://halocall-production.up.railway.app
  *
  * Run with: bun test
  *
@@ -12,7 +12,7 @@
 
 import { describe, test, expect, beforeAll } from "bun:test";
 
-const BASE_URL = process.env.API_BASE_URL || "https://ring-buddy-production.up.railway.app";
+const BASE_URL = process.env.API_BASE_URL || "https://halocall-production.up.railway.app";
 
 // Track if the service is available
 let serviceAvailable = false;
@@ -128,7 +128,7 @@ describe("Health Check & Root", () => {
     }>("/");
 
     expect(status).toBe(200);
-    expect(data.name).toBe("Ring Buddy API");
+    expect(data.name).toBe("HaloCall API");
     expect(data.version).toBe("1.0.0");
     expect(data.endpoints).toBeDefined();
     expect(data.endpoints.customers).toBeDefined();
@@ -180,13 +180,13 @@ describe("Example Endpoint", () => {
       }>
     >("/example", {
       method: "POST",
-      body: { message: "Hello, Ring Buddy!" },
+      body: { message: "Hello, HaloCall!" },
     });
 
     expect(status).toBe(200);
     expect(data.success).toBe(true);
-    expect(data.data?.received).toBe("Hello, Ring Buddy!");
-    expect(data.data?.echo).toBe("You said: Hello, Ring Buddy!");
+    expect(data.data?.received).toBe("Hello, HaloCall!");
+    expect(data.data?.echo).toBe("You said: Hello, HaloCall!");
     expect(data.data?.processed_at).toBeDefined();
   });
 

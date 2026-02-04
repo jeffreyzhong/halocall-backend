@@ -1,5 +1,5 @@
 {
-  "name": "ring-buddy",
+  "name": "halocall",
   "version": "1.0.0",
   "description": "Railway functions for AI voice agent webhook tool calls",
   "type": "module",
