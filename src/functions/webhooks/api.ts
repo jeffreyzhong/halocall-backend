@@ -654,6 +654,21 @@ app.post('/elevenlabs-init', async (c) => {
     
     if (!phoneConfig) {
       console.warn('No phone config found for:', called_number, '(normalized:', normalizedPhone, ')');
+      
+      // TEMPORARY: Use fallback merchant for testing when phone not configured
+      const fallbackMerchantId = process.env.DEFAULT_MERCHANT_ID;
+      if (fallbackMerchantId) {
+        console.log('Using fallback merchant_id for testing:', fallbackMerchantId);
+        return c.json({
+          type: 'conversation_initiation_client_data',
+          dynamic_variables: {
+            'secret__merchant_id': fallbackMerchantId,
+            caller_phone: caller_id || '',
+            location_timezone: 'America/Los_Angeles',
+          },
+        }, 200);
+      }
+      
       return c.json({
         type: 'conversation_initiation_client_data',
         dynamic_variables: {
