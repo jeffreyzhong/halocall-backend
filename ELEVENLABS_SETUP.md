@@ -168,7 +168,7 @@ This allows sharing tools across agents while customizing authentication per mer
 |-----------|------|----------|-------------|
 | service_name | string | Yes | Service to book |
 | time | string | Yes | Specific time (e.g., "tomorrow at 2pm") |
-| staff_name | string | No | Staff member name |
+| staff_name | string | Yes | Staff member name, or "anyone" if no preference |
 | location_name | string | No | Location name |
 | customer_phone | string | No | Customer phone (if not already identified) |
 | notes | string | No | Appointment notes |

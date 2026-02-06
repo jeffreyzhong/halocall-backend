@@ -135,17 +135,29 @@ export interface VoiceLocationInfo {
   phone?: string;
 }
 
+/** A single time slot with available staff */
+export interface VoiceAvailabilitySlot {
+  /** Human-readable time (e.g., "9:00 AM") */
+  time: string;
+  /** Staff members available at this time */
+  staff: string[];
+}
+
 /** Availability formatted for voice */
 export interface VoiceAvailabilityResponse {
-  /** Available dates with time slots */
-  availability: Record<string, string[]>;
+  /** All staff members who appear in the results */
+  all_staff: string[];
+  /** Available slots grouped by date, each with staff names */
+  availability: Record<string, VoiceAvailabilitySlot[]>;
   /** Service being searched */
   service_name: string;
   /** Location name */
   location_name: string;
-  /** Staff name if specified */
-  staff_name?: string;
-  /** Summary for voice (e.g., "I found 5 openings on Tuesday and 3 on Wednesday") */
+  /** Total unique time slots found */
+  total_slots: number;
+  /** Number of slots included in this response */
+  slots_shown: number;
+  /** Summary for voice agent to speak */
   summary: string;
 }
 

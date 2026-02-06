@@ -259,7 +259,6 @@ app.post('/availability', async (c) => {
 
     // 3. Resolve staff (optional)
     let staffMemberIds: string[] | undefined;
-    let staffName: string | undefined;
     if (args.staff_name && args.staff_name.toLowerCase() !== 'anyone' && args.staff_name.toLowerCase() !== 'any') {
       const staffResult = await resolveStaffName(squareClient, args.staff_name, locationId);
       if (staffResult.confidence === 'none') {
@@ -274,7 +273,6 @@ app.post('/availability', async (c) => {
         ), 400);
       }
       staffMemberIds = [staffResult.match!.team_member_id];
-      staffName = staffResult.match!.name;
     }
 
     // 4. Parse date preference
@@ -307,53 +305,117 @@ app.post('/availability', async (c) => {
 
     const availabilities = response.availabilities || [];
 
-    // 7. Group by date for voice output
-    const slotsByDate: Record<string, string[]> = {};
+    // 7. Build staff ID → name map from bookable staff at this location
+    const allStaff = await listStaff(squareClient, locationId);
+    const staffIdToName: Record<string, string> = {};
+    for (const s of allStaff) {
+      staffIdToName[s.team_member_id] = s.name;
+    }
+
+    // 8. Group by date → time, deduplicating and attaching staff names per slot
+    const MAX_SLOTS_PER_DATE = 5;
+    const MAX_DATES = 5;
+
+    const slotsByDate: Record<string, { time: string; staff: string[] }[]> = {};
+    const allStaffNames = new Set<string>();
+    let totalSlots = 0;
+
     for (const avail of availabilities) {
       const a = avail as unknown as Record<string, unknown>;
       const startAt = a.startAt as string;
-      
+
+      // Extract team member ID from the appointment segment
+      const segments = a.appointmentSegments as Array<Record<string, unknown>> | undefined;
+      const teamMemberId = segments?.[0]?.teamMemberId as string | undefined;
+      const memberName = teamMemberId ? staffIdToName[teamMemberId] : undefined;
+
+      // Skip entries where we can't resolve the staff member
+      if (!memberName) continue;
+
       const date = new Date(startAt).toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
         timeZone: location.timezone,
       });
-      
+
       const time = new Date(startAt).toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
         timeZone: location.timezone,
       });
-      
+
       if (!slotsByDate[date]) {
         slotsByDate[date] = [];
       }
-      slotsByDate[date].push(time);
+
+      // Find existing slot for this date+time or create a new one
+      let slot = slotsByDate[date].find(s => s.time === time);
+      if (!slot) {
+        totalSlots++;
+        slot = { time, staff: [] };
+        slotsByDate[date].push(slot);
+      }
+
+      if (!slot.staff.includes(memberName)) {
+        slot.staff.push(memberName);
+      }
+      allStaffNames.add(memberName);
     }
 
-    // 8. Generate summary
-    const totalSlots = availabilities.length;
-    const dateCount = Object.keys(slotsByDate).length;
+    // 9. Cap results to keep the response concise
+    const allDates = Object.keys(slotsByDate);
+    const cappedDates = allDates.slice(0, MAX_DATES);
+    const cappedAvailability: Record<string, { time: string; staff: string[] }[]> = {};
+    let slotsShown = 0;
+
+    for (const date of cappedDates) {
+      cappedAvailability[date] = slotsByDate[date].slice(0, MAX_SLOTS_PER_DATE);
+      slotsShown += cappedAvailability[date].length;
+    }
+
+    // 10. Generate staff-aware summary
+    const serviceName = getServiceDisplayName(service);
+    const dateCount = allDates.length;
     let summary: string;
-    
+
     if (totalSlots === 0) {
-      summary = `I don't see any openings for ${getServiceDisplayName(service)} ${dateRange.humanReadable}. Would you like me to check a different time?`;
-    } else if (dateCount === 1) {
-      const date = Object.keys(slotsByDate)[0];
-      const times = slotsByDate[date];
-      summary = `I found ${times.length} opening${times.length > 1 ? 's' : ''} on ${date}: ${times.slice(0, 3).join(', ')}${times.length > 3 ? ` and ${times.length - 3} more` : ''}.`;
+      summary = `I don't see any openings for ${serviceName} ${dateRange.humanReadable}. Would you like me to check a different time?`;
     } else {
-      summary = `I found ${totalSlots} openings across ${dateCount} days. `;
-      const firstDate = Object.keys(slotsByDate)[0];
-      summary += `On ${firstDate}, I have ${slotsByDate[firstDate].slice(0, 3).join(', ')}.`;
+      const firstDate = allDates[0];
+      const firstSlots = slotsByDate[firstDate];
+      const uniqueStaff = [...allStaffNames];
+
+      if (dateCount === 1 && uniqueStaff.length === 1) {
+        // Single date, single staff member
+        const times = firstSlots.slice(0, 3).map(s => s.time).join(', ');
+        const more = firstSlots.length > 3 ? ` and ${firstSlots.length - 3} more` : '';
+        summary = `I found ${firstSlots.length} opening${firstSlots.length > 1 ? 's' : ''} with ${uniqueStaff[0]} on ${firstDate}: ${times}${more}.`;
+      } else if (dateCount === 1) {
+        // Single date, multiple staff
+        const firstSlot = firstSlots[0];
+        const staffList = firstSlot.staff.join(' and ');
+        summary = `I found ${firstSlots.length} opening${firstSlots.length > 1 ? 's' : ''} on ${firstDate}. `;
+        summary += `At ${firstSlot.time}, ${staffList} ${firstSlot.staff.length > 1 ? 'are' : 'is'} available.`;
+        if (firstSlots.length > 1) {
+          const secondSlot = firstSlots[1];
+          summary += ` At ${secondSlot.time}, ${secondSlot.staff.join(' and ')}.`;
+        }
+      } else {
+        // Multiple dates
+        summary = `I found ${totalSlots} openings across ${dateCount} days. `;
+        const firstSlot = firstSlots[0];
+        summary += `The earliest is ${firstDate} at ${firstSlot.time} with ${firstSlot.staff.join(' and ')}.`;
+      }
     }
 
     return c.json(successResponse({
-      availability: slotsByDate,
-      service_name: getServiceDisplayName(service),
+      all_staff: [...allStaffNames],
+      availability: cappedAvailability,
+      service_name: serviceName,
       location_name: locationName,
-      staff_name: staffName,
+      total_slots: totalSlots,
+      slots_shown: slotsShown,
       summary,
     }));
   } catch (error) {
