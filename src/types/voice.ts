@@ -71,8 +71,6 @@ export interface VoiceCustomerCreateArgs {
   last_name?: string;
   /** Phone number */
   phone: string;
-  /** Optional: email address */
-  email?: string;
 }
 
 /** POST /voice/appointments - Get customer's appointments */

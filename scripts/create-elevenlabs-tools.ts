@@ -161,7 +161,6 @@ function buildToolConfigs(baseUrl: string): WebhookToolConfig[] {
             first_name: { type: 'string', description: "Customer's first name." },
             last_name: { type: 'string', description: "Customer's last name." },
             phone: { type: 'string', description: "Customer's phone number." },
-            email: { type: 'string', description: "Customer's email address." },
           },
           required: ['first_name', 'phone'],
         },

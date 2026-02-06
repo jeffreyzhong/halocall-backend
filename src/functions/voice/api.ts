@@ -613,9 +613,11 @@ app.post('/book', async (c) => {
       appointmentSegments: [appointmentSegment],
     };
 
-    // Add customer if provided
-    if (args.customer_id) {
-      bookingData.customerId = args.customer_id;
+    // Add customer if a valid-looking ID is provided
+    // Voice agents may pass placeholder values like "none" or "unknown"
+    const customerId = args.customer_id?.trim();
+    if (customerId && customerId.length > 4 && !/^(none|unknown|n\/a|null|undefined)$/i.test(customerId)) {
+      bookingData.customerId = customerId;
     }
 
     // Add notes if provided
@@ -739,9 +741,6 @@ app.post('/customer/create', async (c) => {
 
     if (args.last_name) {
       customerData.familyName = args.last_name;
-    }
-    if (args.email) {
-      customerData.emailAddress = args.email;
     }
 
     const response = await squareClient.customers.create(customerData);

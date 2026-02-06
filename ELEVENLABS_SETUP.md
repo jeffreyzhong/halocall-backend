@@ -218,7 +218,6 @@ This allows sharing tools across agents while customizing authentication per mer
 | first_name | string | Yes | Customer's first name |
 | last_name | string | No | Customer's last name |
 | phone | string | Yes | Phone number |
-| email | string | No | Email address |
 
 ---
 
