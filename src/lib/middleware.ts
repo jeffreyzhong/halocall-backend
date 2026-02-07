@@ -62,6 +62,13 @@ export async function merchantMiddleware(c: Context, next: Next) {
     );
   }
 
+  // Allow halo-spa demo merchant to bypass Square client lookup
+  if (merchantId === 'halo-spa') {
+    c.set('merchantId', merchantId);
+    await next();
+    return;
+  }
+
   try {
     // Get the Square client for this merchant
     const squareClient = await getSquareClientForMerchant(merchantId);
