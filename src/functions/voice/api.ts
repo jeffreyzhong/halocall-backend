@@ -904,6 +904,9 @@ app.post('/appointments', async (c) => {
       version: number;
     }> = [];
 
+    // Cache location timezones to avoid repeated lookups
+    const locationTimezones: Record<string, string> = {};
+
     for await (const booking of bookingsResponse) {
       const b = booking as unknown as Record<string, unknown>;
       const startAt = b.startAt as string;
@@ -912,11 +915,21 @@ app.post('/appointments', async (c) => {
 
       // Only include upcoming, non-cancelled bookings
       if (bookingDate >= now && !status.includes('CANCELLED')) {
-        const appointmentSegments = b.appointmentSegments as Array<Record<string, unknown>> | undefined;
-        
+        // Resolve timezone for the booking's location
+        const bookingLocationId = b.locationId as string;
+        if (bookingLocationId && !locationTimezones[bookingLocationId]) {
+          try {
+            const loc = await getLocation(squareClient, bookingLocationId);
+            locationTimezones[bookingLocationId] = loc.timezone;
+          } catch {
+            locationTimezones[bookingLocationId] = 'America/Los_Angeles';
+          }
+        }
+        const timezone = locationTimezones[bookingLocationId] || 'America/Los_Angeles';
+
         upcoming.push({
           booking_id: b.id as string,
-          appointment_time: formatForVoice(startAt),
+          appointment_time: formatForVoice(startAt, timezone),
           status: formatStatus(status),
           version: b.version as number,
         });
