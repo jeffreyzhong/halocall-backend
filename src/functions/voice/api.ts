@@ -858,12 +858,12 @@ app.post('/appointments', async (c) => {
     const squareClient = getSquareClient(c);
     const args = getRequestArgs<VoiceAppointmentsArgs>(c);
 
-    if (!args.phone) {
+    if (!args.caller_phone) {
       return c.json(errorResponse('Please provide your phone number so I can look up your appointments.'), 400);
     }
 
     // First, find the customer
-    const formattedPhone = formatPhoneNumber(args.phone);
+    const formattedPhone = formatPhoneNumber(args.caller_phone);
     const customerResponse = await squareClient.customers.search({
       query: {
         filter: {

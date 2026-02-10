@@ -73,8 +73,8 @@ export interface VoiceCustomerCreateArgs {
 
 /** POST /voice/appointments - Get customer's appointments */
 export interface VoiceAppointmentsArgs {
-  /** Phone number to look up customer */
-  phone: string;
+  /** Caller's phone number to look up customer */
+  caller_phone: string;
 }
 
 /** POST /voice/reschedule - Reschedule an appointment */
