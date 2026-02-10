@@ -79,22 +79,22 @@ export interface VoiceAppointmentsArgs {
 
 /** POST /voice/reschedule - Reschedule an appointment */
 export interface VoiceRescheduleArgs {
-  /** Description of current appointment (e.g., "my massage tomorrow", "the 2pm on Thursday") */
-  current_appointment: string;
-  /** New time (e.g., "Friday at 3pm") */
-  new_time: string;
-  /** Optional: customer phone for identification */
-  phone?: string;
+  /** Booking ID from the appointments list */
+  booking_id: string;
+  /** Booking version from the appointments list (required by Square for optimistic concurrency) */
+  booking_version: number;
+  /** New day and time (e.g., "Friday at 3pm", "next Monday at 10am") */
+  new_day_and_time: string;
+  /** Agent's phone number (used to resolve the location/timezone from our database) */
+  agent_phone: string;
 }
 
 /** POST /voice/cancel - Cancel an appointment */
 export interface VoiceCancelArgs {
-  /** Description of appointment to cancel (e.g., "my massage tomorrow") */
-  appointment: string;
-  /** Optional: reason for cancellation */
-  reason?: string;
-  /** Optional: customer phone for identification */
-  phone?: string;
+  /** Booking ID from the appointments list */
+  booking_id: string;
+  /** Booking version from the appointments list (required by Square for optimistic concurrency) */
+  booking_version: number;
 }
 
 // ============================================================================

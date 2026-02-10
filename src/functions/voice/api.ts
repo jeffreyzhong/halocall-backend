@@ -963,23 +963,71 @@ app.post('/reschedule', async (c) => {
     const squareClient = getSquareClient(c);
     const args = getRequestArgs<VoiceRescheduleArgs>(c);
 
-    if (!args.current_appointment) {
-      return c.json(errorResponse('Please describe which appointment you want to reschedule.'), 400);
+    if (!args.booking_id) {
+      return c.json(errorResponse('Please provide the booking ID of the appointment to reschedule.'), 400);
     }
-    if (!args.new_time) {
-      return c.json(errorResponse('Please specify the new time you would like.'), 400);
+    if (args.booking_version === undefined) {
+      return c.json(errorResponse('Please provide the booking version.'), 400);
+    }
+    if (!args.new_day_and_time) {
+      return c.json(errorResponse('Please specify the new day and time you would like (e.g., "Friday at 3pm").'), 400);
+    }
+    if (!args.agent_phone) {
+      return c.json(errorResponse('Agent phone number is required to determine the timezone.'), 400);
     }
 
-    // This is a simplified implementation - in production, you'd need to:
-    // 1. Parse the current_appointment description to find the booking
-    // 2. Get the current booking version
-    // 3. Parse the new_time
-    // 4. Update the booking
+    // Resolve location for timezone
+    // TODO: Remove this dev mapping once testing with the real number
+    const DEV_PHONE_MAP: Record<string, string> = {
+      '+19493258659': '+19499895487',
+    };
+    const rawAgentPhone = formatPhoneNumber(args.agent_phone);
+    const agentPhone = DEV_PHONE_MAP[rawAgentPhone] || rawAgentPhone;
+    const phoneConfig = await prisma.phone_number_config.findFirst({
+      where: {
+        OR: [
+          { phone_number: agentPhone },
+          { phone_number: agentPhone.replace('+', '') },
+        ],
+      },
+      include: {
+        location: true,
+      },
+    });
+    const timezone = phoneConfig?.location?.timezone || 'America/Los_Angeles';
 
-    // For now, return a helpful message about the capability
-    return c.json(errorResponse(
-      'To reschedule, please provide your phone number so I can look up your appointments.'
-    ), 400);
+    // Parse the new time
+    const newStartAt = parseBookingTime(args.new_day_and_time, { timezone });
+    if (!newStartAt) {
+      return c.json(errorResponse(
+        'I need a specific day and time to reschedule to. Could you say something like "Friday at 3pm" or "next Monday at 10am"?'
+      ), 400);
+    }
+
+    // Update the booking
+    const response = await squareClient.bookings.update({
+      bookingId: args.booking_id,
+      idempotencyKey: generateIdempotencyKey(),
+      booking: {
+        version: args.booking_version,
+        startAt: newStartAt,
+      },
+    });
+
+    if (!response.booking) {
+      return c.json(errorResponse('Failed to reschedule the appointment. Please try again.'), 500);
+    }
+
+    const booking = response.booking as unknown as Record<string, unknown>;
+    const appointmentTime = formatForVoice(booking.startAt as string, timezone);
+    const summary = `Done! Your appointment has been rescheduled to ${appointmentTime}. Is there anything else I can help with?`;
+
+    return c.json(successResponse({
+      booking_id: booking.id as string,
+      new_appointment_time: appointmentTime,
+      status: formatStatus(booking.status as string),
+      summary,
+    }));
   } catch (error) {
     console.error('Voice reschedule error:', error);
     return c.json(errorResponse(handleSquareError(error)), 500);
@@ -999,14 +1047,28 @@ app.post('/cancel', async (c) => {
     const squareClient = getSquareClient(c);
     const args = getRequestArgs<VoiceCancelArgs>(c);
 
-    if (!args.appointment) {
-      return c.json(errorResponse('Please describe which appointment you want to cancel.'), 400);
+    if (!args.booking_id) {
+      return c.json(errorResponse('Please provide the booking ID of the appointment to cancel.'), 400);
     }
 
-    // Similar to reschedule - simplified implementation
-    return c.json(errorResponse(
-      'To cancel an appointment, please provide your phone number so I can look up your bookings.'
-    ), 400);
+    const response = await squareClient.bookings.cancel({
+      bookingId: args.booking_id,
+      idempotencyKey: generateIdempotencyKey(),
+      bookingVersion: args.booking_version,
+    });
+
+    if (!response.booking) {
+      return c.json(errorResponse('Failed to cancel the appointment. Please try again.'), 500);
+    }
+
+    const booking = response.booking as unknown as Record<string, unknown>;
+    const summary = 'Your appointment has been cancelled. Is there anything else I can help with?';
+
+    return c.json(successResponse({
+      booking_id: booking.id as string,
+      status: 'cancelled',
+      summary,
+    }));
   } catch (error) {
     console.error('Voice cancel error:', error);
     return c.json(errorResponse(handleSquareError(error)), 500);
