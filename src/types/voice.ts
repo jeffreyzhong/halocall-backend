@@ -33,26 +33,24 @@ export interface VoiceAvailabilityArgs {
   service_name: string;
   /** Optional: staff member name (e.g., "Sarah", "anyone") */
   staff_name?: string;
-  /** Optional: location name (e.g., "Downtown", "Main Street") */
-  location_name?: string;
+  /** Agent's phone number (used to resolve the location from our database) */
+  agent_phone: string;
   /** When to look for appointments (e.g., "tomorrow", "next Tuesday", "Thursday afternoon") */
-  date_preference: string;
+  day_and_time: string;
 }
 
 /** POST /voice/book - Create a booking */
 export interface VoiceBookArgs {
   /** Service name */
   service_name: string;
-  /** Specific time (e.g., "tomorrow at 2pm", "Thursday at 10:30am") */
-  time: string;
+  /** Specific day and time (e.g., "tomorrow at 2pm", "Thursday at 10:30am") */
+  day_and_time: string;
   /** Staff member name, or "anyone" if no preference */
   staff_name: string;
-  /** Optional: location name */
-  location_name?: string;
-  /** Optional: customer phone number (for new customers or identification) */
-  customer_phone?: string;
-  /** Optional: customer ID if already known */
-  customer_id?: string;
+  /** Agent's phone number (used to resolve the location from our database) */
+  agent_phone: string;
+  /** Caller's phone number (used to look up the customer in Square) */
+  caller_phone: string;
   /** Optional: notes for the appointment */
   notes?: string;
 }
@@ -69,8 +67,8 @@ export interface VoiceCustomerCreateArgs {
   first_name: string;
   /** Optional: last name */
   last_name?: string;
-  /** Phone number */
-  phone: string;
+  /** Caller's phone number */
+  caller_phone: string;
 }
 
 /** POST /voice/appointments - Get customer's appointments */

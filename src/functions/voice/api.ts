@@ -9,6 +9,7 @@
 import { Hono } from 'hono';
 import type { SegmentFilter } from 'square';
 import { handleSquareError } from '../../lib/square';
+import { prisma } from '../../lib/prisma';
 import { getSquareClient, getMerchantId, getRequestArgs } from '../../lib/middleware';
 import { successResponse, errorResponse } from '../../types';
 import {
@@ -301,7 +302,7 @@ app.post('/availability', async (c) => {
     if (merchantId === 'halo-spa') {
       const args = getRequestArgs<VoiceAvailabilityArgs>(c);
       const serviceName = args.service_name || 'Requested service';
-      const datePreference = args.date_preference || 'your requested date';
+      const datePreference = args.day_and_time || 'your requested date';
       const staffName = args.staff_name || 'Any available staff';
       const tz = 'America/Los_Angeles';
 
@@ -356,39 +357,39 @@ app.post('/availability', async (c) => {
     if (!args.service_name) {
       return c.json(errorResponse('Please specify which service you would like to book.'), 400);
     }
-    if (!args.date_preference) {
+    if (!args.day_and_time) {
       return c.json(errorResponse('Please specify when you would like to book (e.g., "tomorrow", "next Tuesday").'), 400);
     }
 
-    // 1. Resolve location
-    const locations = await listLocations(squareClient);
-    let locationId: string;
-    let locationName: string;
-
-    if (locations.length === 0) {
-      return c.json(errorResponse('No locations are currently available for booking.'), 404);
-    } else if (locations.length === 1) {
-      locationId = locations[0].location_id;
-      locationName = locations[0].name;
-    } else if (args.location_name) {
-      const locationResult = await resolveLocationName(squareClient, args.location_name);
-      if (locationResult.confidence === 'none') {
-        return c.json(errorResponse(
-          `I couldn't find a location called "${args.location_name}". Available locations are: ${locations.map(l => l.name).join(', ')}.`
-        ), 404);
-      }
-      if (locationResult.confidence === 'ambiguous') {
-        return c.json(errorResponse(
-          `Multiple locations match. Please specify: ${locationResult.alternatives!.map(l => l.name).join(', ')}.`
-        ), 400);
-      }
-      locationId = locationResult.match!.location_id;
-      locationName = locationResult.match!.name;
-    } else {
-      return c.json(errorResponse(
-        `We have multiple locations. Which would you prefer: ${locations.map(l => l.name).join(', ')}?`
-      ), 400);
+    // 1. Resolve location from agent phone number
+    if (!args.agent_phone) {
+      return c.json(errorResponse('Agent phone number is required to determine the location.'), 400);
     }
+    // TODO: Remove this dev mapping once testing with the real number
+    const DEV_PHONE_MAP: Record<string, string> = {
+      '+19493258659': '+19499895487',
+    };
+    const rawAgentPhone = formatPhoneNumber(args.agent_phone);
+    const agentPhone = DEV_PHONE_MAP[rawAgentPhone] || rawAgentPhone;
+    const phoneConfig = await prisma.phone_number_config.findFirst({
+      where: {
+        OR: [
+          { phone_number: agentPhone },
+          { phone_number: agentPhone.replace('+', '') },
+        ],
+      },
+      include: {
+        location: true,
+      },
+    });
+    if (!phoneConfig) {
+      return c.json(errorResponse('I couldn\'t determine the location for this phone number. Please contact support.'), 404);
+    }
+    const locationId = phoneConfig.location.merchant_location_id;
+
+    // Fetch the location name from Square for the response
+    const locationData = await getLocation(squareClient, locationId);
+    const locationName = locationData.name;
 
     // 2. Resolve service name
     const serviceResult = await resolveServiceName(squareClient, args.service_name, locationId);
@@ -436,7 +437,7 @@ app.post('/availability', async (c) => {
 
     // 4. Parse date preference
     const location = await getLocation(squareClient, locationId);
-    const dateRange = parseNaturalDateTime(args.date_preference, {
+    const dateRange = parseNaturalDateTime(args.day_and_time, {
       timezone: location.timezone,
     });
 
@@ -572,34 +573,39 @@ app.post('/book', async (c) => {
     if (!args.service_name) {
       return c.json(errorResponse('Please specify which service you would like to book.'), 400);
     }
-    if (!args.time) {
+    if (!args.day_and_time) {
       return c.json(errorResponse('Please specify when you would like to book (e.g., "tomorrow at 2pm").'), 400);
     }
 
-    // 1. Resolve location
-    const locations = await listLocations(squareClient);
-    let locationId: string;
-    let locationName: string;
-
-    if (locations.length === 0) {
-      return c.json(errorResponse('No locations are currently available for booking.'), 404);
-    } else if (locations.length === 1) {
-      locationId = locations[0].location_id;
-      locationName = locations[0].name;
-    } else if (args.location_name) {
-      const locationResult = await resolveLocationName(squareClient, args.location_name);
-      if (locationResult.confidence === 'none' || !locationResult.match) {
-        return c.json(errorResponse(
-          `I couldn't find a location called "${args.location_name}". Please specify: ${locations.map(l => l.name).join(', ')}.`
-        ), 404);
-      }
-      locationId = locationResult.match.location_id;
-      locationName = locationResult.match.name;
-    } else {
-      return c.json(errorResponse(
-        `We have multiple locations. Which would you prefer: ${locations.map(l => l.name).join(', ')}?`
-      ), 400);
+    // 1. Resolve location from agent phone number
+    if (!args.agent_phone) {
+      return c.json(errorResponse('Agent phone number is required to determine the location.'), 400);
     }
+    // TODO: Remove this dev mapping once testing with the real number
+    const DEV_PHONE_MAP: Record<string, string> = {
+      '+19493258659': '+19499895487',
+    };
+    const rawAgentPhone = formatPhoneNumber(args.agent_phone);
+    const agentPhone = DEV_PHONE_MAP[rawAgentPhone] || rawAgentPhone;
+    const phoneConfig = await prisma.phone_number_config.findFirst({
+      where: {
+        OR: [
+          { phone_number: agentPhone },
+          { phone_number: agentPhone.replace('+', '') },
+        ],
+      },
+      include: {
+        location: true,
+      },
+    });
+    if (!phoneConfig) {
+      return c.json(errorResponse('I couldn\'t determine the location for this phone number. Please contact support.'), 404);
+    }
+    const locationId = phoneConfig.location.merchant_location_id;
+
+    // Fetch the location name from Square for the confirmation message
+    const locationData = await getLocation(squareClient, locationId);
+    const locationName = locationData.name;
 
     // 2. Resolve service name
     const serviceResult = await resolveServiceName(squareClient, args.service_name, locationId);
@@ -651,7 +657,7 @@ app.post('/book', async (c) => {
 
     // 4. Parse booking time
     const location = await getLocation(squareClient, locationId);
-    const startAt = parseBookingTime(args.time, { timezone: location.timezone });
+    const startAt = parseBookingTime(args.day_and_time, { timezone: location.timezone });
     
     if (!startAt) {
       return c.json(errorResponse(
@@ -672,12 +678,29 @@ app.post('/book', async (c) => {
       appointmentSegments: [appointmentSegment],
     };
 
-    // Add customer if a valid-looking ID is provided
-    // Voice agents may pass placeholder values like "none" or "unknown"
-    const customerId = args.customer_id?.trim();
-    if (customerId && customerId.length > 4 && !/^(none|unknown|n\/a|null|undefined)$/i.test(customerId)) {
-      bookingData.customerId = customerId;
+    // Look up customer by phone number
+    if (!args.caller_phone) {
+      return c.json(errorResponse('Please provide the customer\'s phone number.'), 400);
     }
+    const formattedPhone = formatPhoneNumber(args.caller_phone);
+    const customerSearchResponse = await squareClient.customers.search({
+      query: {
+        filter: {
+          phoneNumber: {
+            exact: formattedPhone,
+          },
+        },
+      },
+      limit: BigInt(1),
+    });
+    const matchedCustomers = customerSearchResponse.customers || [];
+    if (matchedCustomers.length === 0) {
+      return c.json(errorResponse(
+        'I don\'t have a customer profile on file for that phone number. I\'ll need to create one before I can book the appointment. Can I get your first and last name, and can you spell it for me?'
+      ), 404);
+    }
+    const customer = matchedCustomers[0] as unknown as Record<string, unknown>;
+    bookingData.customerId = customer.id as string;
 
     // Add notes if provided
     if (args.notes) {
@@ -789,13 +812,13 @@ app.post('/customer/create', async (c) => {
     if (!args.first_name) {
       return c.json(errorResponse('Please provide your first name.'), 400);
     }
-    if (!args.phone) {
-      return c.json(errorResponse('Please provide a phone number.'), 400);
+    if (!args.caller_phone) {
+      return c.json(errorResponse('Please provide the caller\'s phone number.'), 400);
     }
 
     const customerData: Record<string, unknown> = {
       givenName: args.first_name,
-      phoneNumber: formatPhoneNumber(args.phone),
+      phoneNumber: formatPhoneNumber(args.caller_phone),
     };
 
     if (args.last_name) {
