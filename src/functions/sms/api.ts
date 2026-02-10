@@ -134,11 +134,8 @@ app.post('/twilio', async (c) => {
     const fromNumber = formatPhoneNumber(args.from);
     const toNumber = formatPhoneNumber(args.to);
 
-    const bookingLink =
-      'https://book.squareup.com/appointments/bc1063f5-1513-4e42-8874-39e41e0d8d99/location/BQJCD3TEHHZ0F/services';
-
     const smsBody =
-      `Here's your booking link:\n\n${bookingLink}`;
+      'Hello this is Halo Spa. Thanks for inquiring about a booking.';
 
     // --- Call Twilio Messages API ---
     const { accountSid, authToken } = getTwilioCredentials();
