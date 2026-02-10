@@ -93,8 +93,8 @@ app.get('/', (c) => {
       },
       sms: {
         base: '/sms',
-        description: 'Send SMS messages via Twilio',
-        routes: ['/send'],
+        description: 'Send SMS messages via Twilio or Retell AI',
+        routes: ['/twilio', '/send'],
       },
     },
   });
