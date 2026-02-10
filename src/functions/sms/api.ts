@@ -84,13 +84,13 @@ function formatPhoneNumber(phone: string): string {
  *     "agent_number": "+12065559999"    // sender (Retell-provisioned number)
  *   }
  *
- * The arguments may also be nested under an "arguments" key, matching the
- * standard voice-agent tool-call format.
+ * The arguments may be nested under "args" (Retell AI custom function format),
+ * "arguments", or provided directly in the request body.
  */
 app.post('/send', async (c) => {
   try {
     const body = await c.req.json();
-    const args: Partial<SendSmsArgs> = body.arguments || body;
+    const args: Partial<SendSmsArgs> = body.args || body.arguments || body;
 
     // --- Validate required fields ---
     if (!args.user_number) {

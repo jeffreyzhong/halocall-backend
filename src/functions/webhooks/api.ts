@@ -876,4 +876,26 @@ app.get('/elevenlabs-init', (c) => {
   });
 });
 
+// ============================================================================
+// Retell AI Inbound Webhook
+// ============================================================================
+
+/**
+ * Retell AI inbound call/SMS webhook
+ * 
+ * Called by Retell AI when an inbound call or SMS is received on a
+ * Retell-provisioned phone number. Currently a no-op placeholder that
+ * returns a successful response so Retell proceeds with the default agent.
+ */
+app.post('/retell-inbound', async (c) => {
+  try {
+    const body = await c.req.json();
+    console.log('Retell inbound webhook received:', body);
+    return c.json({}, 200);
+  } catch (error) {
+    console.error('Retell inbound webhook error:', error);
+    return c.json({}, 200);
+  }
+});
+
 export default app;
