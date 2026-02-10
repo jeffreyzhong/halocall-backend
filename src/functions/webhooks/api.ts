@@ -692,11 +692,16 @@ app.post('/elevenlabs-init', async (c) => {
 
     // Hardcoded halo-spa demo agent
     if (normalizePhoneNumber(called_number) === '+19492985110') {
+      const haloSpaCallerPhone = caller_id || '';
       const haloSpaResponse = {
         type: 'conversation_initiation_client_data',
         dynamic_variables: {
           'secret__merchant_id': 'halo-spa',
           agent_phone: normalizePhoneNumber(called_number),
+          caller_phone: haloSpaCallerPhone,
+          customer_profile_info: haloSpaCallerPhone
+            ? `The user is a new customer. Their phone number is ${haloSpaCallerPhone}. If the customer wants to book an appointment, ask for their first and last name (spelled out), and call the create_customer tool to create a customer profile for them.`
+            : '',
         },
       };
       console.log('ElevenLabs init response (halo-spa):', haloSpaResponse);
@@ -751,7 +756,10 @@ app.post('/elevenlabs-init', async (c) => {
               customer_id: customer.customer_id,
               customer_name: customer.customer_name,
               customer_greeting: `Hi ${customer.first_name}, welcome back to ${fallbackBusinessName}. How can I help you?`,
+              customer_profile_info: `The user is an existing customer. Their name is ${customer.customer_name}. Their phone number is ${fallbackCallerPhone}.`,
             };
+          } else {
+            fallbackCustomerVars.customer_profile_info = `The user is a new customer. Their phone number is ${fallbackCallerPhone}. If the customer wants to book an appointment, ask for their first and last name (spelled out), and call the create_customer tool to create a customer profile for them.`;
           }
         }
 
@@ -818,8 +826,11 @@ app.post('/elevenlabs-init', async (c) => {
           customer_id: customer.customer_id,
           customer_name: customer.customer_name,
           customer_greeting: `Hi ${customer.first_name}, welcome back to ${businessName}. How can I help you?`,
+          customer_profile_info: `The user is an existing customer. Their name is ${customer.customer_name}. Their phone number is ${callerPhone}.`,
         };
         console.log('Identified caller as existing customer:', customer.customer_name);
+      } else {
+        customerVars.customer_profile_info = `The user is a new customer. Their phone number is ${callerPhone}. If the customer wants to book an appointment, ask for their first and last name (spelled out), and call the create_customer tool to create a customer profile for them.`;
       }
     }
 
