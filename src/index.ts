@@ -12,6 +12,7 @@ import availability from './functions/availability/api';
 import bookings from './functions/bookings/api';
 import webhooks from './functions/webhooks/api';
 import voice from './functions/voice/api';
+import sms from './functions/sms/api';
 
 // Import merchant middleware
 import { merchantMiddleware } from './lib/middleware';
@@ -90,6 +91,11 @@ app.get('/', (c) => {
         description: 'Appointment booking management (ID-based)',
         routes: ['/create', '/get', '/update', '/cancel', '/list'],
       },
+      sms: {
+        base: '/sms',
+        description: 'Send SMS messages via Twilio',
+        routes: ['/send'],
+      },
     },
   });
 });
@@ -104,6 +110,7 @@ app.route('/availability', availability);
 app.route('/bookings', bookings);
 app.route('/webhooks', webhooks);
 app.route('/voice', voice);
+app.route('/sms', sms);
 
 // 404 handler
 app.notFound((c) => {

@@ -4,14 +4,14 @@
 
 The spa is open seven days a week.
 
-- **Monday – Friday:** 9:00 AM - 5:00 PM
-- **Saturday – Sunday:** 10:00 AM – 8:00 PM
+- **Monday through Friday:** 9:00 AM to 5:00 PM
+- **Saturday and Sunday:** 10:00 AM to 8:00 PM
 
 ## 2. Business Location
 
-**Address:** 1801 E Chestnut Avenue, Santa Ana, CA 92701 
-**Phone:** 909 438 5867
-**Website:** halocall.co
+**Address:** one eight zero one East Chestnut Avenue, Santa Ana, California, nine two seven zero one
+**Phone:** nine zero nine, four three eight, five eight six seven
+**Website:** halocall dot co
 
 ## 3. Services and Products Offered
 
