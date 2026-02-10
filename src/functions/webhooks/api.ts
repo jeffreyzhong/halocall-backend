@@ -696,6 +696,7 @@ app.post('/elevenlabs-init', async (c) => {
         type: 'conversation_initiation_client_data',
         dynamic_variables: {
           'secret__merchant_id': 'halo-spa',
+          agent_phone: normalizePhoneNumber(called_number),
         },
       };
       console.log('ElevenLabs init response (halo-spa):', haloSpaResponse);
@@ -759,6 +760,7 @@ app.post('/elevenlabs-init', async (c) => {
           dynamic_variables: {
             'secret__merchant_id': fallbackMerchantId,
             caller_phone: fallbackCallerPhone,
+            agent_phone: normalizedPhone,
             location_timezone: 'America/Los_Angeles',
             ...fallbackCustomerVars,
           },
@@ -772,6 +774,7 @@ app.post('/elevenlabs-init', async (c) => {
         dynamic_variables: {
           // Return caller info even if we can't find the merchant
           caller_phone: caller_id || '',
+          agent_phone: normalizedPhone,
         },
       };
       console.log('ElevenLabs init response:', noPhoneConfigResponse);
@@ -786,6 +789,7 @@ app.post('/elevenlabs-init', async (c) => {
         type: 'conversation_initiation_client_data',
         dynamic_variables: {
           caller_phone: caller_id || '',
+          agent_phone: normalizePhoneNumber(called_number),
         },
       };
       console.log('ElevenLabs init response:', noMerchantResponse);
@@ -827,6 +831,7 @@ app.post('/elevenlabs-init', async (c) => {
         'secret__merchant_id': merchant.merchant_id,
         // Regular variables - can be used in prompts
         caller_phone: callerPhone,
+        agent_phone: normalizePhoneNumber(called_number),
         location_timezone: phoneConfig.location?.timezone || 'America/Los_Angeles',
         ...customerVars,
       },
@@ -870,6 +875,7 @@ app.get('/elevenlabs-init', (c) => {
       dynamic_variables: {
         'secret__merchant_id': 'The merchant ID for HaloCall API calls',
         caller_phone: 'The caller phone number',
+        agent_phone: 'The Twilio number that was called (for outbound SMS)',
         location_timezone: 'The timezone for the location',
       },
     },
