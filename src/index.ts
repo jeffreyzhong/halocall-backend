@@ -13,6 +13,7 @@ import bookings from './functions/bookings/api';
 import webhooks from './functions/webhooks/api';
 import voice from './functions/voice/api';
 import sms from './functions/sms/api';
+import admin from './functions/admin/api';
 
 // Import merchant middleware
 import { merchantMiddleware } from './lib/middleware';
@@ -111,6 +112,7 @@ app.route('/bookings', bookings);
 app.route('/webhooks', webhooks);
 app.route('/voice', voice);
 app.route('/sms', sms);
+app.route('/admin', admin);
 
 // 404 handler
 app.notFound((c) => {
