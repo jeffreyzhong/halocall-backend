@@ -723,10 +723,9 @@ app.post('/book', async (c) => {
 
     // 7. Build confirmation response
     const appointmentTime = formatForVoice(booking.startAt as string, location.timezone);
-    const summary = `Great! I've booked your ${getServiceDisplayName(service)} for ${appointmentTime} at ${locationName} with ${staffName}. Your confirmation number is ${(booking.id as string).slice(-6)}.`;
+    const summary = `Great! I've booked your ${getServiceDisplayName(service)} for ${appointmentTime} at ${locationName} with ${staffName}.`;
 
     return c.json(successResponse({
-      confirmation_id: booking.id as string,
       appointment_time: appointmentTime,
       service_name: getServiceDisplayName(service),
       location_name: locationName,
