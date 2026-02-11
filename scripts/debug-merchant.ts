@@ -3,7 +3,7 @@
  * Debug script to investigate merchant decryption issues.
  * 
  * Usage:
- *   bun run scripts/debug-merchant.ts MLEKEX90YN115
+ *   bun run scripts/debug-merchant.ts ML7RE0GF63T7A
  */
 
 import "dotenv/config";
