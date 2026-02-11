@@ -8,6 +8,14 @@ import { successResponse, errorResponse } from '../../types';
 const app = new Hono();
 
 /**
+ * Get the current timestamp in America/Los_Angeles timezone.
+ * Used for updating the updated_at column.
+ */
+function getCurrentLATimestamp(): Date {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+}
+
+/**
  * POST /admin/refresh-tokens
  *
  * Refreshes Square OAuth access tokens for all active merchants
@@ -92,7 +100,7 @@ app.post('/refresh-tokens', async (c) => {
           data: {
             square_access_token_encrypted: encryptedAccessToken,
             square_refresh_token_encrypted: encryptedRefreshToken,
-            updated_at: new Date(),
+            updated_at: getCurrentLATimestamp(),
           },
         });
 
