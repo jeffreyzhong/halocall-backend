@@ -1,4 +1,3 @@
-# .github/workflows/refresh-tokens.yml
 name: Weekly Token Refresh
 
 on:
@@ -12,7 +11,10 @@ jobs:
     steps:
       - name: Refresh Square tokens
         run: |
-          response=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.BACKEND_URL }}/admin/refresh-tokens")
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Admin-Key: ${{ secrets.ADMIN_API_KEY }}" \
+            "${{ secrets.BACKEND_URL }}/admin/refresh-tokens")
           http_code=$(echo "$response" | tail -1)
           body=$(echo "$response" | head -n -1)
           echo "Response ($http_code): $body"
