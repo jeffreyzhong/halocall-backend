@@ -13,6 +13,13 @@
 const BACKEND_URL = process.env.BACKEND_URL;
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY;
 
+// Safety net: force-kill the process after 60 seconds no matter what
+const killTimer = setTimeout(() => {
+  console.error('[CRON] Timed out after 60s, forcing exit');
+  process.exit(1);
+}, 60_000);
+killTimer.unref();
+
 if (!BACKEND_URL) {
   console.error('[CRON] Missing BACKEND_URL environment variable');
   process.exit(1);
@@ -41,15 +48,16 @@ async function refreshTokens() {
 
     if (res.ok) {
       console.log('[CRON] Success:', JSON.stringify(data, null, 2));
-      process.exit(0);
     } else {
       console.error(`[CRON] Failed with status ${res.status}:`, JSON.stringify(data, null, 2));
-      process.exit(1);
     }
   } catch (error) {
     console.error('[CRON] Request failed:', error);
-    process.exit(1);
   }
+
+  // Ensure clean exit regardless of open handles
+  console.log('[CRON] Done, exiting.');
+  process.exit(0);
 }
 
 refreshTokens();
