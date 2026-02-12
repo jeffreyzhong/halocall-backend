@@ -8,11 +8,30 @@ import { successResponse, errorResponse } from '../../types';
 const app = new Hono();
 
 /**
- * Get the current timestamp in America/Los_Angeles timezone.
+ * Admin auth middleware – protects all /admin routes with a shared secret.
+ * The caller must supply the key via the X-Admin-Key header or ?key= query param.
+ */
+app.use('*', async (c, next) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  if (!adminKey) {
+    console.error('ADMIN_API_KEY is not configured');
+    return c.json(errorResponse('Server misconfiguration'), 500);
+  }
+
+  const provided = c.req.header('X-Admin-Key') || c.req.query('key');
+  if (provided !== adminKey) {
+    return c.json(errorResponse('Unauthorized'), 401);
+  }
+
+  await next();
+});
+
+/**
+ * Get the current UTC timestamp.
  * Used for updating the updated_at column.
  */
-function getCurrentLATimestamp(): Date {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+function getCurrentTimestamp(): Date {
+  return new Date();
 }
 
 /**
@@ -100,7 +119,7 @@ app.post('/refresh-tokens', async (c) => {
           data: {
             square_access_token_encrypted: encryptedAccessToken,
             square_refresh_token_encrypted: encryptedRefreshToken,
-            updated_at: getCurrentLATimestamp(),
+            updated_at: getCurrentTimestamp(),
           },
         });
 
