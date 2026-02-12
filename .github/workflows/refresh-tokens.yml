@@ -1,0 +1,19 @@
+# .github/workflows/refresh-tokens.yml
+name: Weekly Token Refresh
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 AM UTC
+  workflow_dispatch: {}    # Allow manual trigger
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh Square tokens
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.BACKEND_URL }}/admin/refresh-tokens")
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | head -n -1)
+          echo "Response ($http_code): $body"
+          if [ "$http_code" != "200" ]; then exit 1; fi
